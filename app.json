@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.technowolf3.echostale"
     },
     "web": {
       "output": "static",
@@ -33,9 +34,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#8900d6",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#33054d"
           }
         }
       ]
@@ -43,6 +44,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "83f7fa21-2fb6-4c8c-8a07-c909912286b3"
+      }
+    },
+    "owner": "technowolf3"
   }
 }
