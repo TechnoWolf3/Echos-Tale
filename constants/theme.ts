@@ -51,3 +51,36 @@ export const Fonts = Platform.select({
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
 });
+
+export const GameTheme = {
+  colors: {
+    background: '#060712',
+    backgroundSoft: '#0D1020',
+    panel: '#12182A',
+    panelRaised: '#182036',
+    border: '#263252',
+    borderBright: '#4A5C92',
+    text: '#F4F7FF',
+    textMuted: '#9EA8C6',
+    textFaint: '#687395',
+    echo: '#A9F3FF',
+    echoDeep: '#3B82F6',
+    ember: '#F4B860',
+    violet: '#B18CFF',
+    danger: '#FF6B8A',
+    success: '#83F3B5',
+    shadow: 'rgba(0, 0, 0, 0.35)',
+  },
+  radius: {
+    sm: 8,
+    md: 12,
+    lg: 18,
+  },
+  spacing: {
+    xs: 6,
+    sm: 10,
+    md: 14,
+    lg: 20,
+    xl: 28,
+  },
+};
