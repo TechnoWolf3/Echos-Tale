@@ -2,11 +2,17 @@
   "name": "echos-tale",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=20.19.0 <25"
+  },
   "scripts": {
     "start": "expo start",
+    "build": "expo export --platform web",
+    "export:web": "expo export --platform web",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "vercel-build": "expo export --platform web",
     "web": "expo start --web",
     "lint": "expo lint"
   },
