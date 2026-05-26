@@ -286,3 +286,307 @@ export function resolveEmailSorterSession({
     xp: perfect ? 16 : 9,
   };
 }
+
+export type TransportChoice = {
+  bonusMax: number;
+  bonusMin: number;
+  label: string;
+  risk: number;
+  unlockLevel?: number;
+};
+
+export type TransportStep = {
+  choices: TransportChoice[];
+  key: 'route' | 'handling' | 'finish';
+  title: string;
+};
+
+export type TransportSelection = TransportChoice & {
+  bonus: number;
+  stepKey: TransportStep['key'];
+};
+
+export type TransportSession = {
+  basePay: number;
+  selections: TransportSelection[];
+  status: 'choosing' | 'resolved';
+  stepIndex: number;
+};
+
+export type TransportResolution = {
+  failed: boolean;
+  message: string;
+  payout: number;
+  risk: number;
+  xp: number;
+};
+
+export const transportSteps: TransportStep[] = [
+  {
+    key: 'route',
+    title: 'Pick your route',
+    choices: [
+      { bonusMax: 340, bonusMin: 0, label: 'Highway', risk: 2 },
+      { bonusMax: 590, bonusMin: 170, label: 'Backstreets', risk: 6 },
+      { bonusMax: 380, bonusMin: -80, label: 'Scenic', risk: 1 },
+      { bonusMax: 880, bonusMin: 340, label: 'VIP Lane', risk: 8, unlockLevel: 10 },
+      { bonusMax: 1_470, bonusMin: 630, label: 'Hot Route', risk: 14, unlockLevel: 20 },
+    ],
+  },
+  {
+    key: 'handling',
+    title: 'Choose handling',
+    choices: [
+      { bonusMax: 380, bonusMin: 80, label: 'Careful', risk: 1 },
+      { bonusMax: 710, bonusMin: 250, label: 'Fast', risk: 8 },
+      { bonusMax: 340, bonusMin: 0, label: 'Standard', risk: 3 },
+      { bonusMax: 670, bonusMin: 250, label: 'Insured Handling', risk: 4, unlockLevel: 10 },
+      { bonusMax: 1_300, bonusMin: 550, label: 'Ultra Fragile', risk: 16, unlockLevel: 20 },
+    ],
+  },
+  {
+    key: 'finish',
+    title: 'Finish the delivery',
+    choices: [
+      { bonusMax: 460, bonusMin: 150, label: 'Signature', risk: 3 },
+      { bonusMax: 360, bonusMin: 0, label: 'Doorstep', risk: 5 },
+      { bonusMax: 800, bonusMin: 290, label: 'Priority', risk: 10 },
+      { bonusMax: 1_260, bonusMin: 500, label: 'VIP Priority', risk: 12, unlockLevel: 10 },
+      { bonusMax: 1_890, bonusMin: 840, label: 'Black Ops Drop', risk: 20, unlockLevel: 20 },
+    ],
+  },
+];
+
+export function startTransportSession(): TransportSession {
+  return {
+    basePay: rollBetween(1_575, 2_625),
+    selections: [],
+    status: 'choosing',
+    stepIndex: 0,
+  };
+}
+
+export function selectTransportChoice(
+  session: TransportSession,
+  choice: TransportChoice
+): TransportSession {
+  const step = transportSteps[session.stepIndex];
+  const selection = {
+    ...choice,
+    bonus: rollBetween(choice.bonusMin, choice.bonusMax),
+    stepKey: step.key,
+  };
+
+  return {
+    ...session,
+    selections: [...session.selections, selection],
+    stepIndex: session.stepIndex + 1,
+  };
+}
+
+export function resolveTransportSession({
+  jobLevel,
+  session,
+}: {
+  jobLevel: number;
+  session: TransportSession;
+}): TransportResolution {
+  const bonusTotal = session.selections.reduce((total, choice) => total + choice.bonus, 0);
+  const risk = session.selections.reduce((total, choice) => total + choice.risk, 0);
+  const failed = rollBetween(1, 100) <= risk;
+
+  if (failed) {
+    return {
+      failed,
+      message: 'Transport Contract failed. The package arrived spiritually, not physically.',
+      payout: rollBetween(60, 260),
+      risk,
+      xp: 4,
+    };
+  }
+
+  const payout = Math.round((session.basePay + bonusTotal) * getJobMultiplier(jobLevel));
+
+  return {
+    failed,
+    message: `Transport Contract paid ${payout.toLocaleString()}. Delivery notes look almost legal.`,
+    payout,
+    risk,
+    xp: 15,
+  };
+}
+
+export type ShiftChoice = {
+  bonus: number;
+  label: string;
+  note: string;
+};
+
+export type ShiftEvent = {
+  choices: ShiftChoice[];
+  prompt: string;
+};
+
+export type ShiftSession = {
+  bonusTotal: number;
+  eventIndex: number;
+  events: ShiftEvent[];
+  readyAt: number;
+  startedAt: number;
+  status: 'working' | 'ready' | 'resolved';
+};
+
+export type ShiftResolution = {
+  message: string;
+  payout: number;
+  xp: number;
+};
+
+const shiftEvents: ShiftEvent[] = [
+  {
+    prompt: 'The register freezes during a rush.',
+    choices: [
+      { bonus: 180, label: 'Restart properly', note: 'Small bonus, no drama.' },
+      { bonus: 320, label: 'Smack the panel', note: 'Fast, cursed, effective.' },
+      { bonus: 0, label: 'Call manager', note: 'Safe and deeply boring.' },
+    ],
+  },
+  {
+    prompt: 'A customer asks where the impossible cereal lives.',
+    choices: [
+      { bonus: 220, label: 'Walk them over', note: 'Customer service detected.' },
+      { bonus: 120, label: 'Point vaguely', note: 'Technically an answer.' },
+      { bonus: -80, label: 'Invent aisle 13', note: 'There is no aisle 13.' },
+    ],
+  },
+  {
+    prompt: 'A suspicious noise comes from the stockroom.',
+    choices: [
+      { bonus: 260, label: 'Check it', note: 'Brave, or underpaid.' },
+      { bonus: 90, label: 'Ignore it', note: 'The noise files a complaint.' },
+      { bonus: 160, label: 'Send Kyle', note: 'Kyle knows what he did.' },
+    ],
+  },
+];
+
+export function startShiftSession(): ShiftSession {
+  const now = Date.now();
+
+  return {
+    bonusTotal: 0,
+    eventIndex: 0,
+    events: shiftEvents.sort(() => Math.random() - 0.5).slice(0, 3),
+    readyAt: now + 45_000,
+    startedAt: now,
+    status: 'working',
+  };
+}
+
+export function applyShiftChoice(session: ShiftSession, choice: ShiftChoice): ShiftSession {
+  return {
+    ...session,
+    bonusTotal: session.bonusTotal + choice.bonus,
+    eventIndex: session.eventIndex + 1,
+  };
+}
+
+export function resolveShiftSession({
+  jobLevel,
+  session,
+}: {
+  jobLevel: number;
+  session: ShiftSession;
+}): ShiftResolution {
+  const payout = Math.max(
+    0,
+    Math.round((rollBetween(3_500, 6_500) + session.bonusTotal) * getJobMultiplier(jobLevel))
+  );
+
+  return {
+    message: `Shift paid ${payout.toLocaleString()}. Payroll approved it with suspicious enthusiasm.`,
+    payout,
+    xp: 12,
+  };
+}
+
+export type TruckerManifest = {
+  distanceKm: number;
+  flavor: string;
+  freight: string;
+  payout: number;
+  route: string;
+  trailer: string;
+};
+
+export type TruckerSession = {
+  manifest: TruckerManifest;
+  paidAt?: number;
+  readyAt: number;
+  startedAt: number;
+  status: 'active' | 'paid';
+};
+
+const truckerRoutes = [
+  { distanceKm: 915, route: 'Brisbane to Sydney' },
+  { distanceKm: 1_681, route: 'Brisbane to Cairns' },
+  { distanceKm: 878, route: 'Sydney to Melbourne' },
+  { distanceKm: 3_420, route: 'Melbourne to Perth' },
+  { distanceKm: 3_027, route: 'Adelaide to Darwin' },
+  { distanceKm: 2_240, route: 'Perth to Broome' },
+  { distanceKm: 1_497, route: 'Darwin to Alice Springs' },
+  { distanceKm: 244, route: 'Canberra to Wagga Wagga' },
+  { distanceKm: 904, route: 'Townsville to Mount Isa' },
+];
+
+const truckerFreight = [
+  ['Frozen Meat', 'Refrigerated Trailer'],
+  ['Medical Supplies', 'Curtainsider'],
+  ['Livestock', 'Livestock Carrier'],
+  ['Bulk Grain', 'Tipper'],
+  ['Machinery Crates', 'Drop Deck'],
+  ['Fuel', 'Tanker'],
+  ['Dangerous Goods', 'Dangerous Goods Trailer'],
+  ['Nursery Plants', 'Semi Trailer'],
+];
+
+export function generateTruckerManifest(): TruckerManifest {
+  const route = truckerRoutes[rollBetween(0, truckerRoutes.length - 1)];
+  const freight = truckerFreight[rollBetween(0, truckerFreight.length - 1)];
+
+  return {
+    distanceKm: route.distanceKm,
+    flavor: 'The manifest smells like diesel, coffee, and questionable scheduling.',
+    freight: freight[0],
+    payout: route.distanceKm * 12,
+    route: route.route,
+    trailer: freight[1],
+  };
+}
+
+export function startTruckerRun(manifest: TruckerManifest): TruckerSession {
+  const now = Date.now();
+  const minutes = Math.max(3, manifest.distanceKm * 0.01);
+
+  return {
+    manifest,
+    readyAt: now + minutes * 60_000,
+    startedAt: now,
+    status: 'active',
+  };
+}
+
+export function resolveTruckerRun({
+  jobLevel,
+  session,
+}: {
+  jobLevel: number;
+  session: TruckerSession;
+}): ShiftResolution {
+  const payout = Math.round(session.manifest.payout * getJobMultiplier(jobLevel));
+
+  return {
+    message: `Trucker route paid ${payout.toLocaleString()}. The kilometres have been monetised.`,
+    payout,
+    xp: 18,
+  };
+}

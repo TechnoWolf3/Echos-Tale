@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
@@ -18,6 +18,7 @@ export default function RootLayout() {
       <ElsewhereGameProvider>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="link-discord" options={{ title: 'Link Discord' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="light" />

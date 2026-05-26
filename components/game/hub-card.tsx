@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Href, Link } from 'expo-router';
 import { Pressable, View } from 'react-native';
 
 import { GameCard } from '@/components/game/game-card';
@@ -7,7 +7,7 @@ import { GameTheme } from '@/constants/theme';
 
 type HubCardProps = {
   detail: string;
-  href?: '/games' | '/jobs' | '/rituals';
+  href?: Href;
   meta: string;
   onPress?: () => void;
   status?: string;

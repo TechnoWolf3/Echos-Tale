@@ -11,6 +11,7 @@ import { formatMoney, useElsewhereGame } from '@/hooks/use-elsewhere-game';
 
 export default function CityScreen() {
   const game = useElsewhereGame();
+  const { refreshRemoteProfileIfStale } = game;
 
   useEffect(() => {
     const interval = setInterval(game.tick, 1000);
@@ -18,9 +19,13 @@ export default function CityScreen() {
     return () => clearInterval(interval);
   }, [game.tick]);
 
+  useEffect(() => {
+    void refreshRemoteProfileIfStale(8_000);
+  }, [refreshRemoteProfileIfStale]);
+
   return (
-    <GameScreen>
-      <View style={{ gap: GameTheme.spacing.sm }}>
+    <GameScreen backgroundAsset="echo" backgroundOpacity={0.24}>
+      <View style={{ gap: GameTheme.spacing.sm, paddingTop: GameTheme.spacing.xl }}>
         <GameText tone="faint" variant="label">
           Echo of Elsewhere
         </GameText>
@@ -45,6 +50,18 @@ export default function CityScreen() {
 
       <View style={{ gap: GameTheme.spacing.md }}>
         <GameText variant="title">Tonight&apos;s Doors</GameText>
+        <HubCard
+          detail={
+            game.linkedProfile
+              ? `Linked as ${game.linkedProfile.displayName}. The city ledger is reading Railway.`
+              : 'Connect the phone app to the Discord bot ledger through Railway.'
+          }
+          href="/link-discord"
+          meta={game.sessionToken ? 'Discord identity | auto-refresh ready | Railway API' : 'Discord identity | shared balances | Railway API'}
+          status={game.sessionToken ? 'Linked' : game.linkStatus === 'loading' ? 'Syncing' : 'Link'}
+          title="Discord Bridge"
+          tone="echo"
+        />
         <HubCard
           detail="Low lights, loud tables, bad odds, and choices that probably need a receipt."
           href="/games"

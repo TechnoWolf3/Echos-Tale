@@ -1,10 +1,17 @@
-import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+
+import { EchoApiError, EchoApiProfile, fetchEchoProfile, isEchoApiConfigured } from '@/services/echo-api';
+import { clearStoredSessionToken, getStoredSessionToken, setStoredSessionToken } from '@/services/session-storage';
 
 type CooldownId =
   | 'emailSorter'
+  | 'shift'
   | 'skillCheck'
   | 'storeClerk'
   | 'storeRobbery'
+  | 'transportContract'
+  | 'trucker'
   | 'dailyRitual'
   | 'echoWheel';
 
@@ -26,18 +33,28 @@ type ElsewhereGame = {
   jailUntil: number | null;
   jobLevel: number;
   jobXp: number;
+  linkedProfile: EchoApiProfile | null;
+  linkStatus: 'local' | 'loading' | 'linked' | 'error';
+  lastSyncedAt: number | null;
   now: number;
   serverBank: number;
+  sessionToken: string | null;
   wallet: number;
+  applyRemoteProfile: (profile: EchoApiProfile, options?: { announce?: boolean }) => void;
   bribeOfficer: () => void;
   canAct: (id: CooldownId) => boolean;
   clearJail: () => void;
+  clearLinkedSession: () => Promise<void>;
   getCooldownLabel: (id: CooldownId) => string;
   playEchoWheel: () => void;
+  refreshRemoteProfile: () => Promise<void>;
+  refreshRemoteProfileIfStale: (minimumAgeMs?: number) => Promise<void>;
+  resolveCasinoPlay: (result: { cost: number; message: string; payout: number }) => boolean;
   resolveJobReward: (result: { cooldownId: CooldownId; cooldownSeconds: number; message: string; payout: number; tone?: EventTone; xp: number }) => void;
   runDailyRitual: () => void;
   runStoreClerk: () => void;
   runStoreRobbery: () => void;
+  setLinkedSession: (token: string, profile: EchoApiProfile) => Promise<void>;
   tick: () => void;
 };
 
@@ -74,7 +91,12 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
   const [jobXp, setJobXp] = useState(0);
   const [cooldowns, setCooldowns] = useState<Cooldowns>({});
   const [jailUntil, setJailUntil] = useState<number | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [linkedProfile, setLinkedProfile] = useState<EchoApiProfile | null>(null);
+  const [linkStatus, setLinkStatus] = useState<'local' | 'loading' | 'linked' | 'error'>('loading');
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
+  const refreshInFlight = useRef(false);
   const [events, setEvents] = useState<GameEvent[]>([
     {
       id: 1,
@@ -91,6 +113,150 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
   const pushEvent = useCallback((message: string, tone: EventTone = 'neutral') => {
     setEvents((current) => [{ id: Date.now(), message, tone }, ...current].slice(0, 8));
   }, []);
+
+  const applyRemoteProfile = useCallback(
+    (profile: EchoApiProfile, options: { announce?: boolean } = {}) => {
+      setWallet(profile.walletBalance);
+      setBank(profile.bankBalance);
+      setServerBank(profile.serverBankBalance);
+      setHeat(profile.heat);
+      setJobLevel(profile.jobLevel);
+      setJobXp(profile.jobXp);
+      setJailUntil(profile.jailedUntil ? new Date(profile.jailedUntil).getTime() : null);
+      setLinkedProfile(profile);
+      setLinkStatus('linked');
+      setLastSyncedAt(Date.now());
+
+      if (options.announce ?? true) {
+        pushEvent(`Linked ${profile.displayName}. The app ledger now follows Railway.`, 'echo');
+      }
+    },
+    [pushEvent]
+  );
+
+  const setLinkedSession = useCallback(
+    async (token: string, profile: EchoApiProfile) => {
+      await setStoredSessionToken(token);
+      setSessionToken(token);
+      applyRemoteProfile(profile);
+    },
+    [applyRemoteProfile]
+  );
+
+  const clearLinkedSession = useCallback(async () => {
+    await clearStoredSessionToken();
+    setSessionToken(null);
+    setLinkedProfile(null);
+    setLinkStatus('local');
+    pushEvent('Discord bridge disconnected. Local testing ledger is back in charge.', 'neutral');
+  }, [pushEvent]);
+
+  const refreshRemoteProfile = useCallback(async () => {
+    if (!sessionToken || refreshInFlight.current) {
+      return;
+    }
+
+    refreshInFlight.current = true;
+
+    try {
+      const profile = await fetchEchoProfile(sessionToken);
+      applyRemoteProfile(profile, { announce: false });
+    } catch (error) {
+      setLinkStatus('error');
+
+      if (error instanceof EchoApiError && error.status === 401) {
+        await clearStoredSessionToken();
+        setSessionToken(null);
+        setLinkedProfile(null);
+        pushEvent('Railway session expired. Link Discord again when you are ready.', 'bad');
+        return;
+      }
+
+      pushEvent('Railway profile refresh failed. The local ledger is showing the last known numbers.', 'bad');
+    } finally {
+      refreshInFlight.current = false;
+    }
+  }, [applyRemoteProfile, pushEvent, sessionToken]);
+
+  const refreshRemoteProfileIfStale = useCallback(
+    async (minimumAgeMs = 10_000) => {
+      if (!sessionToken) {
+        return;
+      }
+
+      if (lastSyncedAt && Date.now() - lastSyncedAt < minimumAgeMs) {
+        return;
+      }
+
+      await refreshRemoteProfile();
+    },
+    [lastSyncedAt, refreshRemoteProfile, sessionToken]
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    const restoreSession = async () => {
+      if (!isEchoApiConfigured) {
+        setLinkStatus('local');
+        return;
+      }
+
+      const storedToken = await getStoredSessionToken();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!storedToken) {
+        setLinkStatus('local');
+        return;
+      }
+
+      setSessionToken(storedToken);
+
+      try {
+        const profile = await fetchEchoProfile(storedToken);
+
+        if (!mounted) {
+          return;
+        }
+
+        applyRemoteProfile(profile, { announce: false });
+        pushEvent(`Railway ledger restored for ${profile.displayName}.`, 'echo');
+      } catch {
+        if (!mounted) {
+          return;
+        }
+
+        await clearStoredSessionToken();
+        setSessionToken(null);
+        setLinkedProfile(null);
+        setLinkStatus('local');
+        pushEvent('Saved Railway session could not be restored. Link Discord again when ready.', 'bad');
+      }
+    };
+
+    restoreSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, [applyRemoteProfile, pushEvent]);
+
+  useEffect(() => {
+    if (!sessionToken) {
+      return;
+    }
+
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void refreshRemoteProfileIfStale(5_000);
+      }
+    });
+
+    return () => subscription.remove();
+  }, [refreshRemoteProfileIfStale, sessionToken]);
 
   const setCooldown = useCallback((id: CooldownId, seconds: number) => {
     setCooldowns((current) => ({
@@ -278,6 +444,23 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
     pushEvent('Wheel jammed, coughed, and granted nothing except suspicion.', 'neutral');
   }, [canAct, pushEvent, setCooldown, wallet]);
 
+  const resolveCasinoPlay = useCallback(
+    ({ cost, message, payout }: { cost: number; message: string; payout: number }) => {
+      if (wallet < cost) {
+        pushEvent('Wallet declined the casino receipt. Not enough cash on hand.', 'bad');
+        return false;
+      }
+
+      const paidFromHouse = Math.min(payout, serverBank + cost);
+
+      setWallet((current) => current - cost + paidFromHouse);
+      setServerBank((current) => Math.max(0, current + cost - paidFromHouse));
+      pushEvent(message, paidFromHouse > cost ? 'good' : payout > 0 ? 'neutral' : 'bad');
+      return true;
+    },
+    [pushEvent, serverBank, wallet]
+  );
+
   const bribeOfficer = useCallback(() => {
     const cost = 5_000;
 
@@ -312,9 +495,11 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       bank,
+      applyRemoteProfile,
       bribeOfficer,
       canAct,
       clearJail,
+      clearLinkedSession,
       cooldowns,
       events,
       getCooldownLabel,
@@ -322,21 +507,31 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       jailUntil,
       jobLevel,
       jobXp,
+      linkedProfile,
+      linkStatus,
+      lastSyncedAt,
       now,
       playEchoWheel,
+      refreshRemoteProfile,
+      refreshRemoteProfileIfStale,
+      resolveCasinoPlay,
       resolveJobReward,
       runDailyRitual,
       runStoreClerk,
       runStoreRobbery,
       serverBank,
+      sessionToken,
+      setLinkedSession,
       tick,
       wallet,
     }),
     [
       bank,
+      applyRemoteProfile,
       bribeOfficer,
       canAct,
       clearJail,
+      clearLinkedSession,
       cooldowns,
       events,
       getCooldownLabel,
@@ -344,13 +539,21 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       jailUntil,
       jobLevel,
       jobXp,
+      linkedProfile,
+      linkStatus,
+      lastSyncedAt,
       now,
       playEchoWheel,
+      refreshRemoteProfile,
+      refreshRemoteProfileIfStale,
+      resolveCasinoPlay,
       resolveJobReward,
       runDailyRitual,
       runStoreClerk,
       runStoreRobbery,
       serverBank,
+      sessionToken,
+      setLinkedSession,
       tick,
       wallet,
     ]

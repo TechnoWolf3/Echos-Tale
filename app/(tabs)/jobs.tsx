@@ -8,29 +8,14 @@ import { GameText } from '@/components/game/game-text';
 import { HubCard } from '@/components/game/hub-card';
 import { ProgressBar } from '@/components/game/progress-bar';
 import { EmailSorterJob } from '@/components/jobs/email-sorter-job';
+import { ShiftJob } from '@/components/jobs/shift-job';
 import { SkillCheckJob } from '@/components/jobs/skill-check-job';
+import { TransportContractJob } from '@/components/jobs/transport-contract-job';
+import { TruckerJob } from '@/components/jobs/trucker-job';
 import { GameTheme } from '@/constants/theme';
 import { useElsewhereGame } from '@/hooks/use-elsewhere-game';
 
 const workJobs = [
-  {
-    detail: 'Three delivery choices: route, handling, and drop-off style. Safer pays less.',
-    meta: 'job:95:contract | 10m cooldown | wallet payout',
-    status: 'Build First',
-    title: 'Transport Contract',
-  },
-  {
-    detail: 'Timed shift with small events: rude customer, shortcut, restock, cover coworker.',
-    meta: 'job:95:shift | 6m cooldown | active shift state',
-    status: 'Later',
-    title: 'Shift',
-  },
-  {
-    detail: 'Pick a manifest, drive the route, dodge delays, and collect by the kilometre.',
-    meta: 'job:95:trucker | persistent run | manifest refreshes',
-    status: 'Later',
-    title: 'Trucker',
-  },
   {
     detail: 'A rare golden job card after normal work. Short challenge, huge payout, no mercy.',
     meta: 'job_95_legendary | rare spawn | reaction challenge',
@@ -86,6 +71,7 @@ const enterpriseJobs = [
 
 export default function JobsScreen() {
   const game = useElsewhereGame();
+  const { refreshRemoteProfileIfStale } = game;
   const xpProgress = game.jobXp / (100 + (game.jobLevel - 1) * 60);
 
   useEffect(() => {
@@ -93,6 +79,10 @@ export default function JobsScreen() {
 
     return () => clearInterval(interval);
   }, [game.tick]);
+
+  useEffect(() => {
+    void refreshRemoteProfileIfStale(8_000);
+  }, [refreshRemoteProfileIfStale]);
 
   return (
     <GameScreen>
@@ -120,8 +110,11 @@ export default function JobsScreen() {
 
       <View style={{ gap: GameTheme.spacing.md }}>
         <GameText variant="title">Work a 9-5</GameText>
+        <TransportContractJob />
         <SkillCheckJob />
         <EmailSorterJob />
+        <ShiftJob />
+        <TruckerJob />
         {workJobs.map((job) => (
           <HubCard
             key={job.title}
@@ -151,8 +144,8 @@ export default function JobsScreen() {
         <GameText variant="title">The Grind</GameText>
         <ActionCard
           description="Customers buy things. You make change. The register hates you today."
-          disabled={!game.canAct('storeClerk')}
-          label={game.getCooldownLabel('storeClerk')}
+          disabled={!!game.sessionToken || !game.canAct('storeClerk')}
+          label={game.sessionToken ? 'Server Soon' : game.getCooldownLabel('storeClerk')}
           meta="Start Shift | +14 job XP | fatigue later"
           onPress={game.runStoreClerk}
           title="Store Clerk"
@@ -188,8 +181,8 @@ export default function JobsScreen() {
         <GameText variant="title">Crime</GameText>
         <ActionCard
           description="Fast cash, bad fingerprints. Clean runs pay. Messy ones leave your shoes remembered."
-          disabled={!game.canAct('storeRobbery')}
-          label={game.getCooldownLabel('storeRobbery')}
+          disabled={!!game.sessionToken || !game.canAct('storeRobbery')}
+          label={game.sessionToken ? 'Server Soon' : game.getCooldownLabel('storeRobbery')}
           meta="Rob Store | raises heat | fines feed Server Bank"
           onPress={game.runStoreRobbery}
           title="Store Robbery"
@@ -197,8 +190,8 @@ export default function JobsScreen() {
         />
         <ActionCard
           description="Pay a patrol officer to forget your name. Sometimes they forget the wrong thing."
-          disabled={game.wallet < 5_000}
-          label={game.wallet < 5_000 ? 'Need $5k' : 'Pay $5k'}
+          disabled={!!game.sessionToken || game.wallet < 5_000}
+          label={game.sessionToken ? 'Server Soon' : game.wallet < 5_000 ? 'Need $5k' : 'Pay $5k'}
           meta="Lay Low alternative later | bribe feeds Server Bank"
           onPress={game.bribeOfficer}
           title="Bribe Officer"

@@ -139,7 +139,7 @@ export function SkillCheckJob() {
                 style={{
                   backgroundColor:
                     phase === 'memorise' ? colorStyles[color] : GameTheme.colors.backgroundSoft,
-                  borderColor: colorStyles[color],
+                  borderColor: phase === 'memorise' ? colorStyles[color] : GameTheme.colors.border,
                   borderRadius: GameTheme.radius.sm,
                   borderWidth: 1,
                   flex: 1,

@@ -47,12 +47,17 @@ const otherRituals = [
 
 export default function RitualsScreen() {
   const game = useElsewhereGame();
+  const { refreshRemoteProfileIfStale } = game;
 
   useEffect(() => {
     const interval = setInterval(game.tick, 1000);
 
     return () => clearInterval(interval);
   }, [game.tick]);
+
+  useEffect(() => {
+    void refreshRemoteProfileIfStale(8_000);
+  }, [refreshRemoteProfileIfStale]);
 
   return (
     <GameScreen>
@@ -71,8 +76,8 @@ export default function RitualsScreen() {
         <GameText variant="title">Primary Rituals</GameText>
         <ActionCard
           description="A daily claim with a reliable wallet payout. No puzzle. No spin. Just Echo paperwork."
-          disabled={!game.canAct('dailyRitual')}
-          label={game.getCooldownLabel('dailyRitual')}
+          disabled={!!game.sessionToken || !game.canAct('dailyRitual')}
+          label={game.sessionToken ? 'Server Soon' : game.getCooldownLabel('dailyRitual')}
           meta="id: daily | Sydney day reset"
           onPress={game.runDailyRitual}
           title="Daily Ritual"
@@ -94,8 +99,8 @@ export default function RitualsScreen() {
         <GameText variant="title">Other Rituals</GameText>
         <ActionCard
           description="Pay wallet cash to spin a ritual outcome. Jackpot-looking trouble, but not casino."
-          disabled={!game.canAct('echoWheel') || game.wallet < 10_000}
-          label={game.wallet < 10_000 ? 'Need $10k' : game.getCooldownLabel('echoWheel')}
+          disabled={!!game.sessionToken || !game.canAct('echoWheel') || game.wallet < 10_000}
+          label={game.sessionToken ? 'Server Soon' : game.wallet < 10_000 ? 'Need $10k' : game.getCooldownLabel('echoWheel')}
           meta="id: echo_wheel | ritual earnings | blessings and curses"
           onPress={game.playEchoWheel}
           title="Echo Wheel"
