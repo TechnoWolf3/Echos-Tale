@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
+import type { Href } from 'expo-router';
 
 import { GameCard } from '@/components/game/game-card';
 import { GameScreen } from '@/components/game/game-screen';
@@ -44,7 +45,7 @@ export default function CityScreen() {
           }}>
           <StatPill label="Wallet" value={formatMoney(game.wallet)} />
           <StatPill label="Bank" value={formatMoney(game.bank)} />
-          <StatPill label="House Pool" value={formatMoney(game.serverBank)} />
+          <StatPill label="Heat" value={`${game.heat}/100`} />
         </View>
       </GameCard>
 
@@ -60,6 +61,14 @@ export default function CityScreen() {
           meta={game.sessionToken ? 'Discord identity | auto-refresh ready | Railway API' : 'Discord identity | shared balances | Railway API'}
           status={game.sessionToken ? 'Linked' : game.linkStatus === 'loading' ? 'Syncing' : 'Link'}
           title="Discord Bridge"
+          tone="echo"
+        />
+        <HubCard
+          detail="Stability. Security. Silence. Store clean money, move funds, track account history."
+          href={'/bank' as Href}
+          meta="Deposits, withdrawals, transfers, loans, statements"
+          status="Open"
+          title="The Echo Reserve"
           tone="echo"
         />
         <HubCard

@@ -26,6 +26,7 @@ type GameEvent = {
 type Cooldowns = Partial<Record<CooldownId, number>>;
 
 type ElsewhereGame = {
+  accountNumber: string | null;
   bank: number;
   cooldowns: Cooldowns;
   events: GameEvent[];
@@ -85,6 +86,7 @@ export function formatMoney(value: number) {
 export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
   const [wallet, setWallet] = useState(7_500);
   const [bank, setBank] = useState(25_000);
+  const [accountNumber, setAccountNumber] = useState<string | null>(null);
   const [serverBank, setServerBank] = useState(500_000);
   const [heat, setHeat] = useState(12);
   const [jobLevel, setJobLevel] = useState(1);
@@ -118,6 +120,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
     (profile: EchoApiProfile, options: { announce?: boolean } = {}) => {
       setWallet(profile.walletBalance);
       setBank(profile.bankBalance);
+      setAccountNumber(profile.accountNumber ?? null);
       setServerBank(profile.serverBankBalance);
       setHeat(profile.heat);
       setJobLevel(profile.jobLevel);
@@ -494,6 +497,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
+      accountNumber,
       bank,
       applyRemoteProfile,
       bribeOfficer,
@@ -526,6 +530,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       wallet,
     }),
     [
+      accountNumber,
       bank,
       applyRemoteProfile,
       bribeOfficer,

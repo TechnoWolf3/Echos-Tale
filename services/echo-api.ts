@@ -1,4 +1,5 @@
 export type EchoApiProfile = {
+  accountNumber?: string | null;
   bankBalance: number;
   discordUserId: string | null;
   displayName: string;
@@ -127,6 +128,98 @@ export type EchoApiInsideTrackBetResponse = {
   ticket: EchoApiInsideTrackTicket;
 };
 
+export type EchoApiBankLoan = {
+  defaultAt?: string | null;
+  dueAt?: string | null;
+  fee?: number;
+  id?: string;
+  offerId?: string;
+  offerName: string;
+  principal?: number;
+  remainingDue: number;
+  status: 'active' | 'defaulted' | 'overdue' | 'paid';
+  totalDue?: number;
+};
+
+export type EchoApiBankLoanOffer = {
+  defaultAt?: string | null;
+  description: string;
+  dueDays?: number;
+  fee: number;
+  graceDays?: number;
+  id: string;
+  locked?: boolean;
+  name: string;
+  principal: number;
+  requirement?: string | null;
+  totalDue: number;
+};
+
+export type EchoApiRecurringDeposit = {
+  amount: number;
+  enabled: boolean;
+  failedCount?: number;
+  lastResult?: string | null;
+  lastRunAt?: string | null;
+  nextRunAt?: string | null;
+};
+
+export type EchoApiBankDashboard = {
+  accountNumber: string | null;
+  bankBalance: number;
+  loan: EchoApiBankLoan | null;
+  profile: EchoApiProfile;
+  recurringDeposit: EchoApiRecurringDeposit | null;
+  totalWealth: number;
+  walletBalance: number;
+};
+
+export type EchoApiBankTransaction = {
+  amount: number;
+  createdAt: string;
+  displayAmount?: number;
+  id: string;
+  meta?: Record<string, unknown>;
+  type: string;
+};
+
+export type EchoApiBankTransactionsResponse = {
+  transactions: EchoApiBankTransaction[];
+};
+
+export type EchoApiBankLoansResponse = {
+  loan: EchoApiBankLoan | null;
+  offers: EchoApiBankLoanOffer[];
+  profile?: EchoApiProfile;
+};
+
+export type EchoApiBankMoveResponse = {
+  accountNumber?: string | null;
+  amount: number;
+  bankBalance?: number;
+  creditedAmount?: number;
+  loanStatus?: string;
+  profile: EchoApiProfile;
+  recoveredAmount?: number;
+  senderBankBalance?: number;
+  status: 'deposited' | 'transferred' | 'withdrawn';
+  toAccountNumber?: string;
+  walletBalance?: number;
+};
+
+export type EchoApiLoanAcceptResponse = {
+  loan: EchoApiBankLoan;
+  profile: EchoApiProfile;
+  status: 'approved';
+};
+
+export type EchoApiLoanRepayResponse = {
+  loan: EchoApiBankLoan;
+  paid: number;
+  profile: EchoApiProfile;
+  status: 'cleared' | 'paid';
+};
+
 export type DiscordLinkCodeResponse = {
   expiresAt: string;
   linkCode: string;
@@ -140,7 +233,7 @@ export type DiscordLinkStatusResponse = {
 
 type ApiOptions = {
   body?: unknown;
-  method?: 'GET' | 'POST';
+  method?: 'DELETE' | 'GET' | 'POST';
   signal?: AbortSignal;
   token?: string | null;
 };
@@ -294,6 +387,81 @@ export function placeInsideTrackBet(
   return echoApiRequest<EchoApiInsideTrackBetResponse>('/v1/casino/inside-track/bet', {
     body: bet,
     method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchBankDashboard(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiBankDashboard>('/v1/bank', {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function depositBankFunds(sessionToken: string, amount: number | 'all') {
+  return echoApiRequest<EchoApiBankMoveResponse>('/v1/bank/deposit', {
+    body: { amount },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function withdrawBankFunds(sessionToken: string, amount: number | 'all') {
+  return echoApiRequest<EchoApiBankMoveResponse>('/v1/bank/withdraw', {
+    body: { amount },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function transferBankFunds(sessionToken: string, accountNumber: string, amount: number) {
+  return echoApiRequest<EchoApiBankMoveResponse>('/v1/bank/transfer', {
+    body: { accountNumber, amount },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchBankTransactions(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiBankTransactionsResponse>('/v1/bank/transactions', {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function fetchBankLoans(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiBankLoansResponse>('/v1/bank/loans', {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function acceptBankLoan(sessionToken: string, offerId: string) {
+  return echoApiRequest<EchoApiLoanAcceptResponse>(`/v1/bank/loans/${encodeURIComponent(offerId)}/accept`, {
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function repayBankLoan(sessionToken: string, amount: number | 'all') {
+  return echoApiRequest<EchoApiLoanRepayResponse>('/v1/bank/loans/repay', {
+    body: { amount },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function setRecurringDeposit(sessionToken: string, amount: number) {
+  return echoApiRequest<EchoApiRecurringDeposit>('/v1/bank/recurring-deposit', {
+    body: { amount },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function disableRecurringDeposit(sessionToken: string) {
+  return echoApiRequest<EchoApiRecurringDeposit>('/v1/bank/recurring-deposit', {
+    method: 'DELETE',
     token: sessionToken,
   });
 }
