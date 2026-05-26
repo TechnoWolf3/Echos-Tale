@@ -18,8 +18,8 @@ import {
   placeInsideTrackBet,
 } from '@/services/echo-api';
 
-const betTypes: EchoApiInsideTrackBetType[] = ['win', 'place', 'show'];
 const localBetTypes: TrackBetType[] = ['win', 'place', 'show'];
+const remoteBetTypes: EchoApiInsideTrackBetType[] = ['win', 'place', 'show'];
 
 function formatClock(ms: number) {
   const seconds = Math.max(0, Math.ceil(ms / 1000));
@@ -132,35 +132,34 @@ function TrackLane({
           borderWidth: 1,
           height: 22,
           justifyContent: 'center',
-          overflow: 'hidden',
         }}>
         <Animated.View
           style={{
             backgroundColor: isLeader ? GameTheme.colors.ember : isTicket ? GameTheme.colors.echo : GameTheme.colors.violet,
+            borderRadius: 999,
             height: '100%',
             opacity: 0.72,
             width,
-          }}
-        />
-        <View
-          style={{
-            alignItems: 'center',
-            backgroundColor: isLeader ? GameTheme.colors.ember : GameTheme.colors.panelRaised,
-            borderColor: GameTheme.colors.background,
-            borderRadius: 999,
-            borderWidth: 2,
-            height: 30,
-            justifyContent: 'center',
-            left: 0,
-            position: 'absolute',
-            top: -5,
-            transform: [{ translateX: Math.max(4, Math.min(250, ((horse.progress ?? 0) / 1000) * 250)) }],
-            width: 30,
           }}>
-          <GameText tone={isLeader ? 'primary' : 'echo'} variant="caption">
-            {horse.number}
-          </GameText>
-        </View>
+          <View
+            style={{
+              alignItems: 'center',
+              backgroundColor: isLeader ? GameTheme.colors.ember : GameTheme.colors.panelRaised,
+              borderColor: GameTheme.colors.background,
+              borderRadius: 999,
+              borderWidth: 2,
+              height: 30,
+              justifyContent: 'center',
+              position: 'absolute',
+              right: -15,
+              top: -5,
+              width: 30,
+            }}>
+            <GameText tone={isLeader ? 'primary' : 'echo'} variant="caption">
+              {horse.number}
+            </GameText>
+          </View>
+        </Animated.View>
       </View>
     </View>
   );
@@ -170,11 +169,13 @@ function HorseRow({
   betType,
   horse,
   isSelected,
+  onSelectBet,
   onPress,
 }: {
   betType: EchoApiInsideTrackBetType;
   horse: EchoApiInsideTrackHorse;
   isSelected: boolean;
+  onSelectBet: (type: EchoApiInsideTrackBetType) => void;
   onPress: () => void;
 }) {
   return (
@@ -198,9 +199,32 @@ function HorseRow({
           {getOddsForBet(horse, betType).toFixed(2)}x
         </GameText>
       </View>
-      <GameText tone="muted" variant="caption">
-        Win {horse.odds.toFixed(2)}x | Place {getOddsForBet(horse, 'place').toFixed(2)}x | Show {getOddsForBet(horse, 'show').toFixed(2)}x
-      </GameText>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.xs }}>
+        {remoteBetTypes.map((type) => {
+          const active = isSelected && betType === type;
+
+          return (
+            <Pressable
+              accessibilityRole="button"
+              key={type}
+              onPress={() => onSelectBet(type)}
+              style={({ pressed }) => ({
+                backgroundColor: active ? 'rgba(244, 184, 96, 0.12)' : GameTheme.colors.panel,
+                borderColor: active ? GameTheme.colors.ember : GameTheme.colors.borderBright,
+                borderRadius: GameTheme.radius.sm,
+                borderWidth: 1,
+                minWidth: 86,
+                opacity: pressed ? 0.75 : 1,
+                paddingHorizontal: GameTheme.spacing.sm,
+                paddingVertical: GameTheme.spacing.xs,
+              })}>
+              <GameText tone={active ? 'ember' : 'muted'} variant="caption">
+                {type.toUpperCase()} {getOddsForBet(horse, type).toFixed(2)}x
+              </GameText>
+            </Pressable>
+          );
+        })}
+      </View>
       <GameText tone="faint" variant="caption">
         {getHorseForm(horse)}
       </GameText>
@@ -358,13 +382,9 @@ function RemoteInsideTrack() {
         </View>
       ) : race.phase === 'betting' ? (
         <View style={{ gap: GameTheme.spacing.md }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
-            {betTypes.map((type) => (
-              <CasinoButton key={type} onPress={() => setBetType(type)} tone={betType === type ? 'ember' : 'plain'}>
-                {type}
-              </CasinoButton>
-            ))}
-          </View>
+          <GameText tone="muted">
+            Pick a horse, choose Win, Place, or Show, then lock the ticket before the rail closes.
+          </GameText>
           <View style={{ gap: GameTheme.spacing.sm }}>
             {race.horses.map((horse) => (
               <HorseRow
@@ -373,6 +393,10 @@ function RemoteInsideTrack() {
                 isSelected={selectedHorse?.number === horse.number}
                 key={horse.number}
                 onPress={() => setHorseNumber(horse.number)}
+                onSelectBet={(type) => {
+                  setHorseNumber(horse.number);
+                  setBetType(type);
+                }}
               />
             ))}
           </View>
