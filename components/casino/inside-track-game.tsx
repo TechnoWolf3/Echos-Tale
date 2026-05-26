@@ -19,7 +19,6 @@ import {
 } from '@/services/echo-api';
 
 const localBetTypes: TrackBetType[] = ['win', 'place', 'show'];
-const remoteBetTypes: EchoApiInsideTrackBetType[] = ['win', 'place', 'show'];
 
 function formatClock(ms: number) {
   const seconds = Math.max(0, Math.ceil(ms / 1000));
@@ -91,23 +90,26 @@ function ticketLabel(ticket: EchoApiInsideTrackTicket) {
 }
 
 function TrackLane({
+  displayProgress,
   horse,
   isLeader,
   isTicket,
 }: {
+  displayProgress?: number;
   horse: EchoApiInsideTrackHorse;
   isLeader: boolean;
   isTicket: boolean;
 }) {
-  const progress = useRef(new Animated.Value(Math.max(0, Math.min(1, (horse.progress ?? 0) / 1000)))).current;
+  const visualProgress = displayProgress ?? horse.progress ?? 0;
+  const progress = useRef(new Animated.Value(Math.max(0, Math.min(1, visualProgress / 1000)))).current;
 
   useEffect(() => {
     Animated.timing(progress, {
       duration: 900,
-      toValue: Math.max(0, Math.min(1, (horse.progress ?? 0) / 1000)),
+      toValue: Math.max(0, Math.min(1, visualProgress / 1000)),
       useNativeDriver: false,
     }).start();
-  }, [horse.progress, progress]);
+  }, [progress, visualProgress]);
 
   const width = progress.interpolate({
     inputRange: [0, 1],
@@ -166,16 +168,12 @@ function TrackLane({
 }
 
 function HorseRow({
-  betType,
   horse,
   isSelected,
-  onSelectBet,
   onPress,
 }: {
-  betType: EchoApiInsideTrackBetType;
   horse: EchoApiInsideTrackHorse;
   isSelected: boolean;
-  onSelectBet: (type: EchoApiInsideTrackBetType) => void;
   onPress: () => void;
 }) {
   return (
@@ -196,35 +194,12 @@ function HorseRow({
           #{horse.number} {horse.name}
         </GameText>
         <GameText tone="ember" variant="label">
-          {getOddsForBet(horse, betType).toFixed(2)}x
+          {horse.odds.toFixed(2)}x
         </GameText>
       </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.xs }}>
-        {remoteBetTypes.map((type) => {
-          const active = isSelected && betType === type;
-
-          return (
-            <Pressable
-              accessibilityRole="button"
-              key={type}
-              onPress={() => onSelectBet(type)}
-              style={({ pressed }) => ({
-                backgroundColor: active ? 'rgba(244, 184, 96, 0.12)' : GameTheme.colors.panel,
-                borderColor: active ? GameTheme.colors.ember : GameTheme.colors.borderBright,
-                borderRadius: GameTheme.radius.sm,
-                borderWidth: 1,
-                minWidth: 86,
-                opacity: pressed ? 0.75 : 1,
-                paddingHorizontal: GameTheme.spacing.sm,
-                paddingVertical: GameTheme.spacing.xs,
-              })}>
-              <GameText tone={active ? 'ember' : 'muted'} variant="caption">
-                {type.toUpperCase()} {getOddsForBet(horse, type).toFixed(2)}x
-              </GameText>
-            </Pressable>
-          );
-        })}
-      </View>
+      <GameText tone="muted" variant="caption">
+        Win {horse.odds.toFixed(2)}x | Place {getOddsForBet(horse, 'place').toFixed(2)}x | Show {getOddsForBet(horse, 'show').toFixed(2)}x
+      </GameText>
       <GameText tone="faint" variant="caption">
         {getHorseForm(horse)}
       </GameText>
@@ -232,12 +207,40 @@ function HorseRow({
   );
 }
 
+function getVisualProgress(
+  horse: EchoApiInsideTrackHorse,
+  race: EchoApiInsideTrackRace,
+  leaderNumber?: number
+) {
+  if (race.phase === 'results' && race.finalOrder?.length) {
+    const place = race.finalOrder.findIndex((finalHorse) => finalHorse.number === horse.number);
+
+    if (place >= 0) {
+      return Math.max(900, 1000 - place * 18);
+    }
+  }
+
+  const rawProgress = horse.progress ?? 0;
+
+  if (race.phase !== 'racing') {
+    return rawProgress;
+  }
+
+  const average =
+    race.horses.reduce((total, nextHorse) => total + (nextHorse.progress ?? 0), 0) / Math.max(1, race.horses.length);
+  const sorted = [...race.horses].sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0));
+  const rank = sorted.findIndex((nextHorse) => nextHorse.number === horse.number);
+  const rankBoost = rank >= 0 ? (race.horses.length - rank - 1) * 10 : 0;
+  const leaderBoost = horse.number === leaderNumber ? 12 : 0;
+
+  return Math.max(0, Math.min(990, rawProgress + (rawProgress - average) * 4 + rankBoost + leaderBoost));
+}
+
 function RemoteInsideTrack() {
   const game = useElsewhereGame();
   const { applyRemoteProfile, now, sessionToken } = game;
   const [race, setRace] = useState<EchoApiInsideTrackRace | null>(null);
   const [amount, setAmount] = useState(500);
-  const [betType, setBetType] = useState<EchoApiInsideTrackBetType>('win');
   const [horseNumber, setHorseNumber] = useState<number | null>(null);
   const [message, setMessage] = useState<string>('Loading the rail...');
   const [loading, setLoading] = useState(false);
@@ -294,8 +297,11 @@ function RemoteInsideTrack() {
   );
 
   const leaderNumber = race?.leader?.number ?? [...(race?.horses ?? [])].sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0))[0]?.number;
+  const selectedWinPayout = selectedHorse ? Math.floor(amount * getOddsForBet(selectedHorse, 'win')) : 0;
+  const selectedPlacePayout = selectedHorse ? Math.floor(amount * getOddsForBet(selectedHorse, 'place')) : 0;
+  const selectedShowPayout = selectedHorse ? Math.floor(amount * getOddsForBet(selectedHorse, 'show')) : 0;
 
-  const placeBet = async () => {
+  const placeBet = async (ticketType: EchoApiInsideTrackBetType) => {
     if (!sessionToken || !race || !selectedHorse || race.phase !== 'betting') {
       return;
     }
@@ -306,7 +312,7 @@ function RemoteInsideTrack() {
     try {
       const response = await placeInsideTrackBet(sessionToken, {
         amount,
-        betType,
+        betType: ticketType,
         horseNumber: selectedHorse.number,
         raceId: race.raceId,
       });
@@ -350,6 +356,7 @@ function RemoteInsideTrack() {
         <View style={{ gap: GameTheme.spacing.sm }}>
           {race.horses.map((horse) => (
             <TrackLane
+              displayProgress={getVisualProgress(horse, race, leaderNumber)}
               horse={horse}
               isLeader={horse.number === leaderNumber}
               isTicket={race.myTicket?.horseNumber === horse.number}
@@ -383,27 +390,48 @@ function RemoteInsideTrack() {
       ) : race.phase === 'betting' ? (
         <View style={{ gap: GameTheme.spacing.md }}>
           <GameText tone="muted">
-            Pick a horse, choose Win, Place, or Show, then lock the ticket before the rail closes.
+            Pick a horse, choose your stake, then lock Win, Place, or Show before the rail closes.
           </GameText>
           <View style={{ gap: GameTheme.spacing.sm }}>
             {race.horses.map((horse) => (
               <HorseRow
-                betType={betType}
                 horse={horse}
                 isSelected={selectedHorse?.number === horse.number}
                 key={horse.number}
                 onPress={() => setHorseNumber(horse.number)}
-                onSelectBet={(type) => {
-                  setHorseNumber(horse.number);
-                  setBetType(type);
-                }}
               />
             ))}
           </View>
           <BetPicker amount={amount} min={100} onChange={setAmount} quickBets={[100, 500, 1_500, 5_000, 10_000]} />
-          <CasinoButton disabled={loading || !selectedHorse} onPress={placeBet} tone="ember">
-            {loading ? 'Placing...' : `Place ${betType}`}
-          </CasinoButton>
+          {selectedHorse ? (
+            <View
+              style={{
+                backgroundColor: GameTheme.colors.backgroundSoft,
+                borderColor: GameTheme.colors.ember,
+                borderRadius: GameTheme.radius.sm,
+                borderWidth: 1,
+                gap: GameTheme.spacing.xs,
+                padding: GameTheme.spacing.sm,
+              }}>
+              <GameText tone="ember" variant="label">
+                Selected Ticket
+              </GameText>
+              <GameText tone="muted">
+                #{selectedHorse.number} {selectedHorse.name} | stake {formatMoney(amount)}
+              </GameText>
+            </View>
+          ) : null}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
+            <CasinoButton disabled={loading || !selectedHorse} onPress={() => void placeBet('win')} tone="ember">
+              Win {formatMoney(selectedWinPayout)}
+            </CasinoButton>
+            <CasinoButton disabled={loading || !selectedHorse} onPress={() => void placeBet('place')} tone="ember">
+              Place {formatMoney(selectedPlacePayout)}
+            </CasinoButton>
+            <CasinoButton disabled={loading || !selectedHorse} onPress={() => void placeBet('show')} tone="ember">
+              Show {formatMoney(selectedShowPayout)}
+            </CasinoButton>
+          </View>
         </View>
       ) : (
         <GameText tone="muted">Betting is closed. The rail is already making noise.</GameText>
