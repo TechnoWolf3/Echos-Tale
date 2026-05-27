@@ -187,6 +187,55 @@ export type EchoApiInsideTrackBetResponse = {
   ticket: EchoApiInsideTrackTicket;
 };
 
+export type EchoApiGameConfig = {
+  casino?: Record<string, unknown>;
+  configVersion: string;
+  cooldowns?: Record<string, unknown>;
+  crime?: Record<string, unknown>;
+  grind?: Record<string, unknown>;
+  jobs?: Record<string, unknown>;
+  lottery?: Record<string, unknown>;
+  modifiers?: Record<string, unknown>;
+  rituals?: Record<string, unknown>;
+  xp?: Record<string, unknown>;
+};
+
+export type EchoApiRitual = {
+  available: boolean;
+  id: string;
+  interactive: boolean;
+  name: string;
+  nextClaimAt: string | null;
+  placement: 'other' | 'primary' | string;
+  shortName?: string;
+  unix: number | null;
+};
+
+export type EchoApiRitualsResponse = {
+  configVersion: string;
+  jailed: boolean;
+  profile: EchoApiProfile;
+  rituals: EchoApiRitual[];
+};
+
+export type EchoApiRitualClaimResponse = {
+  configSource?: string;
+  configVersion: string;
+  cooldown?: {
+    nextClaimAt: string;
+    unix: number;
+  };
+  message: string;
+  payout?: {
+    baseAmount?: number;
+    creditedAmount: number;
+    finalAmount: number;
+  };
+  profile: EchoApiProfile;
+  ritualId: string;
+  status: 'claimed';
+};
+
 export type EchoApiBankLoan = {
   defaultAt?: string | null;
   dueAt?: string | null;
@@ -560,6 +609,27 @@ export function placeInsideTrackBet(
 ) {
   return echoApiRequest<EchoApiInsideTrackBetResponse>('/v1/casino/inside-track/bet', {
     body: bet,
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchGameConfig(sessionToken?: string | null, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiGameConfig>('/v1/game-config', {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function fetchRituals(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiRitualsResponse>('/v1/rituals', {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function claimRitual(sessionToken: string, ritualId: string) {
+  return echoApiRequest<EchoApiRitualClaimResponse>(`/v1/rituals/${encodeURIComponent(ritualId)}/claim`, {
     method: 'POST',
     token: sessionToken,
   });
