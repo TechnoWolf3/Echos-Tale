@@ -54,15 +54,17 @@ export function ActionCard({
           </View>
           <View
             style={{
-              alignItems: 'flex-end',
+              alignItems: 'center',
               backgroundColor: GameTheme.colors.backgroundSoft,
               borderColor: toneColor[tone],
               borderRadius: GameTheme.radius.sm,
               borderWidth: 1,
+              justifyContent: 'center',
+              minHeight: 46,
               minWidth: 86,
               padding: GameTheme.spacing.sm,
             }}>
-            <GameText style={{ color: toneColor[tone] }} variant="label">
+            <GameText style={{ color: toneColor[tone], textAlign: 'center' }} variant="label">
               {label}
             </GameText>
           </View>

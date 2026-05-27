@@ -6,6 +6,7 @@ import { GameCard } from '@/components/game/game-card';
 import { GameScreen } from '@/components/game/game-screen';
 import { GameText } from '@/components/game/game-text';
 import { HubCard } from '@/components/game/hub-card';
+import { InteractiveRitualPanel } from '@/components/rituals/interactive-ritual-panel';
 import { GameTheme } from '@/constants/theme';
 import { formatMoney, useElsewhereGame } from '@/hooks/use-elsewhere-game';
 import {
@@ -19,12 +20,20 @@ import {
 
 const fallbackPrimaryRituals = [
   {
+    detail: 'A daily claim with a reliable wallet payout. No puzzle. No spin. Just Echo paperwork.',
+    id: 'daily',
+    meta: 'id: daily | Sydney day reset',
+    title: 'Daily Ritual',
+  },
+  {
     detail: 'A larger weekly claim. Reliable wallet payout, no puzzle, no spin.',
+    id: 'weekly',
     meta: 'id: weekly | Sydney week reset',
     title: 'Weekly Ritual',
   },
   {
     detail: 'A long-cycle payout. Big recurring money, heavy paperwork energy.',
+    id: 'monthly',
     meta: 'id: monthly | Sydney month reset',
     title: 'Monthly Ritual',
   },
@@ -32,22 +41,32 @@ const fallbackPrimaryRituals = [
 
 const fallbackOtherRituals = [
   {
+    detail: 'Pay wallet cash to spin a ritual outcome. Jackpot-looking trouble, but not casino.',
+    id: 'echo_wheel',
+    meta: 'id: echo_wheel | ritual earnings | blessings and curses',
+    title: 'Echo Wheel',
+  },
+  {
     detail: 'Crack a five-digit Echo code. Earlier solves pay better; failure may bite.',
+    id: 'echo_cipher',
     meta: 'id: echo_cipher | daily puzzle',
     title: 'Echo Cipher',
   },
   {
     detail: 'Place fractured numbers into order. Locked choices, scaled payout.',
+    id: 'veil_sequence',
     meta: 'id: veil_sequence | daily puzzle',
     title: 'Veil Sequence',
   },
   {
     detail: 'Pick a square, survive the row and column strike, collect if Echo misses.',
+    id: 'blade_grid',
     meta: 'id: blade_grid | daily risk rite',
     title: 'Blade Grid',
   },
   {
     detail: 'Arrange the names from too-meaningful clues. Mistakes reduce the payout.',
+    id: 'echo_arrangement',
     meta: 'id: echo_arrangement | display: Echo Seating',
     title: 'Echo Seating',
   },
@@ -73,6 +92,12 @@ function formatReset(value: string | null) {
   }
 
   const seconds = Math.max(0, Math.ceil((timestamp - Date.now()) / 1000));
+  const days = Math.ceil(seconds / 86400);
+
+  if (seconds > 86400) {
+    return `${days} day${days === 1 ? '' : 's'}`;
+  }
+
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
 
@@ -81,6 +106,17 @@ function formatReset(value: string | null) {
   }
 
   return `${Math.max(1, minutes)}m`;
+}
+
+function stripDiscordFormatting(value: string) {
+  return value
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/_(.*?)_/g, '$1')
+    .replace(/`{1,3}([^`]+)`{1,3}/g, '$1')
+    .replace(/^>\s?/gm, '')
+    .trim();
 }
 
 function getRitualRewardText(config: EchoApiGameConfig | null, ritualId: string) {
@@ -130,36 +166,59 @@ function ritualDescription(ritual: EchoApiRitual, config: EchoApiGameConfig | nu
     : 'Railway owns the claim, cooldown, payout, and transaction.';
 }
 
+function normalizeRituals(value: unknown) {
+  if (Array.isArray(value)) {
+    return value as EchoApiRitual[];
+  }
+
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+
+  const record = value as Record<string, unknown>;
+
+  if (Array.isArray(record.primary) || Array.isArray(record.other)) {
+    return [...(Array.isArray(record.primary) ? record.primary : []), ...(Array.isArray(record.other) ? record.other : [])] as EchoApiRitual[];
+  }
+
+  return Object.values(record).filter((entry) => entry && typeof entry === 'object' && 'id' in entry) as EchoApiRitual[];
+}
+
 export default function RitualsScreen() {
   const game = useElsewhereGame();
-  const { refreshRemoteProfileIfStale } = game;
+  const { applyRemoteProfile, refreshRemoteProfileIfStale, sessionToken } = game;
   const [rituals, setRituals] = useState<EchoApiRitual[]>([]);
   const [gameConfig, setGameConfig] = useState<EchoApiGameConfig | null>(null);
   const [busyRitual, setBusyRitual] = useState<string | null>(null);
+  const [loadingRituals, setLoadingRituals] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedRitual, setSelectedRitual] = useState<EchoApiRitual | null>(null);
 
   const primaryRituals = useMemo(() => rituals.filter((ritual) => ritual.placement === 'primary'), [rituals]);
   const otherRituals = useMemo(() => rituals.filter((ritual) => ritual.placement !== 'primary'), [rituals]);
 
   const loadRailwayRituals = useCallback(
     async (signal?: AbortSignal) => {
-      if (!game.sessionToken) {
+      if (!sessionToken) {
         return;
       }
 
+      setLoadingRituals(true);
+
       const [config, ritualResponse] = await Promise.all([
-        fetchGameConfig(game.sessionToken, signal),
-        fetchRituals(game.sessionToken, signal),
+        fetchGameConfig(sessionToken, signal),
+        fetchRituals(sessionToken, signal),
       ]);
 
       setGameConfig(config);
-      setRituals(ritualResponse.rituals);
-      game.applyRemoteProfile(ritualResponse.profile, { announce: false });
+      setRituals(normalizeRituals(ritualResponse.rituals));
+      applyRemoteProfile(ritualResponse.profile, { announce: false });
       console.log('Echo config version', config.configVersion);
       setError(null);
+      setLoadingRituals(false);
     },
-    [game]
+    [applyRemoteProfile, sessionToken]
   );
 
   useEffect(() => {
@@ -175,19 +234,20 @@ export default function RitualsScreen() {
   useEffect(() => {
     const controller = new AbortController();
 
-    if (game.sessionToken) {
+    if (sessionToken) {
       loadRailwayRituals(controller.signal).catch((requestError: unknown) => {
         if (!controller.signal.aborted) {
           setError(getErrorMessage(requestError));
+          setLoadingRituals(false);
         }
       });
     }
 
     return () => controller.abort();
-  }, [game.sessionToken, loadRailwayRituals]);
+  }, [loadRailwayRituals, sessionToken]);
 
   const claimRailwayRitual = async (ritual: EchoApiRitual) => {
-    if (!game.sessionToken || ritual.interactive) {
+    if (!sessionToken || ritual.interactive) {
       return;
     }
 
@@ -196,9 +256,9 @@ export default function RitualsScreen() {
     setMessage(null);
 
     try {
-      const result = await claimRitual(game.sessionToken, ritual.id);
-      game.applyRemoteProfile(result.profile, { announce: false });
-      setMessage(`${result.message} Credited ${formatMoney(result.payout?.creditedAmount ?? 0)}.`);
+      const result = await claimRitual(sessionToken, ritual.id);
+      applyRemoteProfile(result.profile, { announce: false });
+      setMessage(`${stripDiscordFormatting(result.message)} Credited ${formatMoney(result.payout?.creditedAmount ?? 0)}.`);
       await loadRailwayRituals();
     } catch (requestError) {
       setError(getErrorMessage(requestError));
@@ -220,11 +280,11 @@ export default function RitualsScreen() {
         </GameText>
       </View>
 
-      {game.sessionToken ? (
+      {sessionToken ? (
         <GameCard>
           <GameText variant="title">Railway Ritual Ledger</GameText>
           <GameText tone="muted">
-            Non-interactive rituals now settle through Railway. Interactive rites stay locked until their dedicated flows exist.
+            Claims and interactive rites route through Railway where endpoints exist. The app renders the room; Railway keeps the receipts.
           </GameText>
           <GameText tone="faint" variant="caption">
             Config {gameConfig?.configVersion ?? 'loading'}
@@ -244,9 +304,22 @@ export default function RitualsScreen() {
         </GameCard>
       ) : null}
 
+      {selectedRitual && sessionToken ? (
+        <InteractiveRitualPanel
+          applyRemoteProfile={applyRemoteProfile}
+          onClose={() => setSelectedRitual(null)}
+          onRefreshRituals={() => loadRailwayRituals()}
+          ritual={selectedRitual}
+          sessionToken={sessionToken}
+        />
+      ) : null}
+
+      {!selectedRitual ? (
+        <>
       <View style={{ gap: GameTheme.spacing.md }}>
         <GameText variant="title">Primary Rituals</GameText>
-        {game.sessionToken ? (
+        {sessionToken && loadingRituals ? <GameText tone="muted">Loading Railway rituals...</GameText> : null}
+        {sessionToken && primaryRituals.length > 0 ? (
           primaryRituals.map((ritual) => (
             <ActionCard
               description={ritualDescription(ritual, gameConfig)}
@@ -259,7 +332,7 @@ export default function RitualsScreen() {
               tone="echo"
             />
           ))
-        ) : (
+        ) : !sessionToken ? (
           <>
             <ActionCard
               description="A daily claim with a reliable wallet payout. No puzzle. No spin. Just Echo paperwork."
@@ -281,23 +354,45 @@ export default function RitualsScreen() {
               />
             ))}
           </>
+        ) : (
+          fallbackPrimaryRituals.map((ritual) => (
+            <HubCard
+              key={ritual.id}
+              detail={`${ritual.detail} Railway did not return this ritual in the list yet.`}
+              meta={ritual.meta}
+              status="Waiting"
+              title={ritual.title}
+              tone="echo"
+            />
+          ))
         )}
       </View>
 
       <View style={{ gap: GameTheme.spacing.md }}>
         <GameText variant="title">Other Rituals</GameText>
-        {game.sessionToken ? (
+        {sessionToken && otherRituals.length > 0 ? (
           otherRituals.map((ritual) => (
-            <HubCard
-              detail={ritualDescription(ritual, gameConfig)}
+            <ActionCard
+              description={ritualDescription(ritual, gameConfig)}
+              disabled={busyRitual !== null || !ritual.available}
               key={ritual.id}
+              label={ritual.available ? (ritual.interactive ? 'Open' : 'Claim') : formatReset(ritual.nextClaimAt)}
               meta={`id: ${ritual.id} | ${ritual.available ? 'ready' : `resets in ${formatReset(ritual.nextClaimAt)}`}`}
-              status={ritual.interactive ? 'Needs Flow' : ritual.available ? 'Claimable' : 'Cooling'}
+              onPress={() => {
+                if (ritual.interactive) {
+                  setSelectedRitual(ritual);
+                  setMessage(null);
+                  setError(null);
+                  return;
+                }
+
+                void claimRailwayRitual(ritual);
+              }}
               title={ritual.shortName ?? ritual.name}
               tone={ritual.interactive ? 'ember' : 'echo'}
             />
           ))
-        ) : (
+        ) : !sessionToken ? (
           <>
             <ActionCard
               description="Pay wallet cash to spin a ritual outcome. Jackpot-looking trouble, but not casino."
@@ -319,6 +414,17 @@ export default function RitualsScreen() {
               />
             ))}
           </>
+        ) : (
+          fallbackOtherRituals.map((ritual) => (
+            <HubCard
+              key={ritual.id}
+              detail={`${ritual.detail} Railway did not return this ritual in the list yet.`}
+              meta={ritual.meta}
+              status="Waiting"
+              title={ritual.title}
+              tone="echo"
+            />
+          ))
         )}
       </View>
 
@@ -329,6 +435,8 @@ export default function RitualsScreen() {
           cooldown, the tracking, and the consequences.
         </GameText>
       </GameCard>
+        </>
+      ) : null}
     </GameScreen>
   );
 }

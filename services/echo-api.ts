@@ -236,6 +236,73 @@ export type EchoApiRitualClaimResponse = {
   status: 'claimed';
 };
 
+export type EchoApiRitualSessionStatus = 'abandoned' | 'active' | 'expired' | 'resolved' | string;
+
+export type EchoApiRitualHistoryEntry = {
+  correctSpot?: number;
+  exact?: number;
+  guess?: string;
+  markers?: string[] | string;
+  misplaced?: number;
+  wrongSpot?: number;
+};
+
+export type EchoApiRitualSession = {
+  availableActions?: string[];
+  clues?: string[];
+  correctOrder?: string[] | number[];
+  correctPositions?: number;
+  currentFragment?: number | null;
+  expiresAt?: string | null;
+  history?: EchoApiRitualHistoryEntry[];
+  id?: string;
+  lastFeedback?: string | null;
+  lastSubmittedOrder?: string[] | null;
+  message?: string;
+  mistakesAllowed?: number;
+  mistakesUsed?: number;
+  names?: string[];
+  payout?: number;
+  placements?: (number | null)[];
+  profile?: EchoApiProfile;
+  result?: Record<string, unknown> | string | null;
+  result_json?: Record<string, unknown> | null;
+  ritualId?: string;
+  scenario?: {
+    id?: string;
+    intro?: string;
+    name?: string;
+  };
+  seatCount?: number;
+  selectedCol?: number;
+  selectedRow?: number;
+  selectedTile?: number;
+  session?: EchoApiRitualSession;
+  sessionId?: string;
+  state?: Record<string, unknown>;
+  state_json?: Record<string, unknown>;
+  status: EchoApiRitualSessionStatus;
+  step?: number;
+  strikeCol?: number;
+  strikeRow?: number;
+  submittedOrder?: string[];
+};
+
+export type EchoApiRitualSessionResponse = {
+  configVersion?: string;
+  message?: string;
+  profile?: EchoApiProfile;
+  session?: EchoApiRitualSession;
+} & EchoApiRitualSession;
+
+export type EchoApiRitualActionBody =
+  | { action: 'choose_tile'; tile: number }
+  | { action: 'give_up' }
+  | { action: 'guess'; guess: string }
+  | { action: 'place'; slot: number }
+  | { action: 'spin' }
+  | { action: 'submit'; order: string[] };
+
 export type EchoApiBankLoan = {
   defaultAt?: string | null;
   dueAt?: string | null;
@@ -428,6 +495,16 @@ function higherLowerTablePaths(suffix = '') {
     `/v1/casino/higherlower/tables${suffix}`,
     `/v1/casino/higher-or-lower/tables${suffix}`,
   ];
+}
+
+function ritualStartPaths(ritualId: string) {
+  const ids = Array.from(new Set([ritualId, ritualId.replace(/_/g, '-')]));
+
+  if (ritualId === 'echo_arrangement') {
+    ids.push('echo-seating');
+  }
+
+  return ids.map((id) => `/v1/rituals/${encodeURIComponent(id)}/start`);
 }
 
 export function createDiscordLinkCode() {
@@ -630,6 +707,28 @@ export function fetchRituals(sessionToken: string, signal?: AbortSignal) {
 
 export function claimRitual(sessionToken: string, ritualId: string) {
   return echoApiRequest<EchoApiRitualClaimResponse>(`/v1/rituals/${encodeURIComponent(ritualId)}/claim`, {
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function startRitualSession(sessionToken: string, ritualId: string) {
+  return echoApiRequestAny<EchoApiRitualSessionResponse>(ritualStartPaths(ritualId), {
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchRitualSession(sessionToken: string, sessionId: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiRitualSessionResponse>(`/v1/rituals/sessions/${encodeURIComponent(sessionId)}`, {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function sendRitualSessionAction(sessionToken: string, sessionId: string, body: EchoApiRitualActionBody) {
+  return echoApiRequest<EchoApiRitualSessionResponse>(`/v1/rituals/sessions/${encodeURIComponent(sessionId)}/action`, {
+    body,
     method: 'POST',
     token: sessionToken,
   });
