@@ -6,6 +6,7 @@ import { CasinoButton } from '@/components/casino/casino-button';
 import { PlayingCard } from '@/components/casino/playing-card';
 import { GameCard } from '@/components/game/game-card';
 import { GameText } from '@/components/game/game-text';
+import { ResultCard } from '@/components/game/result-card';
 import { GameTheme } from '@/constants/theme';
 import { formatMoney, useElsewhereGame } from '@/hooks/use-elsewhere-game';
 import {
@@ -209,6 +210,8 @@ export function BlackjackGame() {
   const dealerValue = remoteRound ? remoteRound.dealer.value : localSession?.status === 'resolved' ? getBlackjackValue(localSession.dealer) : null;
   const playerValue = remoteRound ? activeRemoteHand?.value : localSession ? getBlackjackValue(localSession.player) : null;
   const remoteBet = remoteRound?.bet ?? bet;
+  const resultPayout = remoteRound?.payout ?? localSession?.payout ?? 0;
+  const resultProfit = remoteRound?.profit ?? resultPayout - remoteBet;
   const message = remoteRound?.message ?? localSession?.message ?? 'Dealer is ready. The shoe is full and the room is pretending to be fair.';
   const dealerLine =
     remoteRound || localSession
@@ -366,9 +369,18 @@ export function BlackjackGame() {
       {!playing ? (
         <View style={{ gap: GameTheme.spacing.md }}>
           {resolved ? (
-            <GameText tone={remoteRound ? remoteResultTone(remoteRound) : localSession && localSession.payout > localSession.bet ? 'echo' : 'ember'}>
-              {message}
-            </GameText>
+            <ResultCard
+              details={[
+                { label: 'Dealer', value: dealerValue !== null ? String(dealerValue) : 'Hidden' },
+                { label: 'Player', value: playerValue !== null ? String(playerValue) : 'Unknown' },
+              ]}
+              payout={resultPayout}
+              profit={resultProfit}
+              stake={remoteBet}
+              summary={message}
+              title={resultProfit > 0 ? 'Table Paid' : resultPayout > 0 ? 'Push' : 'House Took It'}
+              tone={remoteRound ? (remoteResultTone(remoteRound) === 'echo' ? 'good' : remoteResultTone(remoteRound) === 'ember' ? 'bad' : 'neutral') : localSession && localSession.payout > localSession.bet ? 'good' : resultPayout > 0 ? 'neutral' : 'bad'}
+            />
           ) : null}
           <BetPicker amount={bet} disabled={busy} onChange={setBet} />
           <CasinoButton disabled={busy} onPress={deal} tone="ember">

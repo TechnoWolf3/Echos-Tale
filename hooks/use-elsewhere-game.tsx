@@ -79,6 +79,10 @@ function rollBetween(min: number, max: number) {
   return Math.floor(min + Math.random() * (max - min + 1));
 }
 
+function getAccountNumber(profile: EchoApiProfile) {
+  return profile.accountNumber ?? profile.account_number ?? null;
+}
+
 export function formatMoney(value: number) {
   return `$${Math.round(value).toLocaleString()}`;
 }
@@ -120,7 +124,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
     (profile: EchoApiProfile, options: { announce?: boolean } = {}) => {
       setWallet(profile.walletBalance);
       setBank(profile.bankBalance);
-      setAccountNumber(profile.accountNumber ?? null);
+      setAccountNumber(getAccountNumber(profile));
       setServerBank(profile.serverBankBalance);
       setHeat(profile.heat);
       setJobLevel(profile.jobLevel);

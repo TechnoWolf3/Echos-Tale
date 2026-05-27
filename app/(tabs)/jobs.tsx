@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+import { CasinoButton } from '@/components/casino/casino-button';
 import { ActionCard } from '@/components/game/action-card';
 import { GameCard } from '@/components/game/game-card';
 import { GameScreen } from '@/components/game/game-screen';
@@ -15,63 +16,51 @@ import { TruckerJob } from '@/components/jobs/trucker-job';
 import { GameTheme } from '@/constants/theme';
 import { useElsewhereGame } from '@/hooks/use-elsewhere-game';
 
-const workJobs = [
-  {
-    detail: 'A rare golden job card after normal work. Short challenge, huge payout, no mercy.',
-    meta: 'job_95_legendary | rare spawn | reaction challenge',
-    status: 'Rare',
-    title: 'Legendary Job',
-  },
-];
+type JobHub = 'community' | 'crime' | 'enterprises' | 'grind' | 'night' | 'underworld' | 'work' | null;
 
 const grindJobs = [
-  {
-    detail: 'Fulfill timed orders, build streaks, and pray the supervisor picked another aisle.',
-    title: 'Warehousing',
-  },
-  {
-    detail: 'Cast, wait, tug, and manage tension when the water starts acting expensive.',
-    title: 'Fishing',
-  },
-  {
-    detail: 'Choose a dig site, go deeper, and decide when the cracks are being dramatic.',
-    title: 'Quarry',
-  },
-  {
-    detail: 'Judge passengers, remember routes, and hope the sketchy fare pays in money.',
-    title: 'Taxi Driver',
-  },
+  { detail: 'Fulfill timed orders, build streaks, and pray the supervisor picked another aisle.', title: 'Warehousing' },
+  { detail: 'Cast, wait, tug, and manage tension when the water starts acting expensive.', title: 'Fishing' },
+  { detail: 'Choose a dig site, go deeper, and decide when the cracks are being dramatic.', title: 'Quarry' },
+  { detail: 'Judge passengers, remember routes, and hope the sketchy fare pays in money.', title: 'Taxi Driver' },
 ];
 
 const nightWalkerJobs = [
-  {
-    detail: 'Read the room for five rounds. Charm pays. Oversharing does not.',
-    title: 'Flirt',
-  },
-  {
-    detail: 'Stage confidence, timing, and crowd reads. Keep it smooth, not explicit.',
-    title: 'Performance',
-  },
-  {
-    detail: 'Negotiate boundaries, payment, safety, and exit timing with a private client.',
-    title: 'Private Client',
-  },
+  { detail: 'Read the room for five rounds. Charm pays. Oversharing does not.', title: 'Flirt' },
+  { detail: 'Stage confidence, timing, and crowd reads. Keep it smooth, not explicit.', title: 'Performance' },
+  { detail: 'Negotiate boundaries, payment, safety, and exit timing with a private client.', title: 'Private Client' },
 ];
 
 const enterpriseJobs = [
-  {
-    detail: 'Plant crops, buy machines with bank money, harvest goods into storage.',
-    title: 'Farming',
-  },
-  {
-    detail: 'Run recipes through production lines, then sell goods or fill contracts.',
-    title: 'Manufacturing',
-  },
+  { detail: 'Plant crops, buy machines with bank money, harvest goods into storage.', title: 'Farming' },
+  { detail: 'Run recipes through production lines, then sell goods or fill contracts.', title: 'Manufacturing' },
 ];
+
+function hubTitle(activeHub: JobHub) {
+  switch (activeHub) {
+    case 'work':
+      return 'Work a 9-5';
+    case 'grind':
+      return 'The Grind';
+    case 'night':
+      return 'Night Walker';
+    case 'crime':
+      return 'Crime';
+    case 'enterprises':
+      return 'Enterprises';
+    case 'underworld':
+      return 'The Underworld';
+    case 'community':
+      return 'Community Contracts';
+    default:
+      return 'Job Board';
+  }
+}
 
 export default function JobsScreen() {
   const game = useElsewhereGame();
   const { refreshRemoteProfileIfStale } = game;
+  const [activeHub, setActiveHub] = useState<JobHub>(null);
   const xpProgress = game.jobXp / (100 + (game.jobLevel - 1) * 60);
 
   useEffect(() => {
@@ -90,10 +79,11 @@ export default function JobsScreen() {
         <GameText tone="faint" variant="label">
           Dodgy work, honest-ish pay
         </GameText>
-        <GameText variant="display">Job Board</GameText>
+        <GameText variant="display">{hubTitle(activeHub)}</GameText>
         <GameText tone="muted">
-          Legal jobs, grind shifts, nightlife, crime, and long-term operations. Payroll keeps a
-          weird amount of notes.
+          {activeHub
+            ? 'Choose the exact shift, job, or bad idea from this branch.'
+            : 'Pick a work category first. Payroll has enough problems without every job yelling at once.'}
         </GameText>
       </View>
 
@@ -108,153 +98,184 @@ export default function JobsScreen() {
         </GameText>
       </GameCard>
 
-      <View style={{ gap: GameTheme.spacing.md }}>
-        <GameText variant="title">Work a 9-5</GameText>
-        <TransportContractJob />
-        <SkillCheckJob />
-        <EmailSorterJob />
-        <ShiftJob />
-        <TruckerJob />
-        {workJobs.map((job) => (
+      {!activeHub ? (
+        <View style={{ gap: GameTheme.spacing.md }}>
           <HubCard
-            key={job.title}
-            detail={job.detail}
-            meta={job.meta}
-            status={job.status}
-            title={job.title}
+            detail="Safe, normal, slightly suspicious work. Contracts, skill checks, email sorting, shifts, and trucking."
+            meta="Transport Contract, Skill Check, Email Sorter, Shift, Trucker"
+            onPress={() => setActiveHub('work')}
+            status="Open"
+            title="Work a 9-5"
             tone="success"
           />
-        ))}
-      </View>
-
-      <GameCard>
-        <View style={{ gap: GameTheme.spacing.xs }}>
-          <GameText variant="title">9-5 Rules</GameText>
-          <GameText tone="muted">
-            Legal work pays Wallet cash, adds job XP, records a transaction, respects cooldowns,
-            and should resolve server-side once the Railway API exists.
-          </GameText>
-        </View>
-        <GameText tone="faint" variant="caption">
-          Needs active_jobs for mobile-safe sessions; Trucker also needs manifest and run storage.
-        </GameText>
-      </GameCard>
-
-      <View style={{ gap: GameTheme.spacing.md }}>
-        <GameText variant="title">The Grind</GameText>
-        <ActionCard
-          description="Customers buy things. You make change. The register hates you today."
-          disabled={!!game.sessionToken || !game.canAct('storeClerk')}
-          label={game.sessionToken ? 'Server Soon' : game.getCooldownLabel('storeClerk')}
-          meta="Start Shift | +14 job XP | fatigue later"
-          onPress={game.runStoreClerk}
-          title="Store Clerk"
-          tone="success"
-        />
-        {grindJobs.map((job) => (
           <HubCard
-            key={job.title}
-            detail={job.detail}
-            meta="Grind job | fatigue | repeatable shift"
-            status={job.title === 'Fishing' ? 'MVP Next' : 'Later'}
-            title={job.title}
+            detail="Repeatable arcade-style shifts with fatigue, streaks, and the choice to push on."
+            meta="Store Clerk, Warehousing, Fishing, Quarry, Taxi Driver"
+            onPress={() => setActiveHub('grind')}
+            status="Browse"
+            title="The Grind"
             tone="success"
           />
-        ))}
-      </View>
-
-      <View style={{ gap: GameTheme.spacing.md }}>
-        <GameText variant="title">Night Walker</GameText>
-        {nightWalkerJobs.map((job) => (
           <HubCard
-            key={job.title}
-            detail={job.detail}
-            meta="Night work | social risk | wallet payout"
+            detail="Late-night social jobs. Charm, risk, boundaries, and awkward consequences."
+            meta="Flirt, Performance, Private Client"
+            onPress={() => setActiveHub('night')}
             status="Later"
-            title={job.title}
+            title="Night Walker"
             tone="ember"
           />
-        ))}
-      </View>
-
-      <View style={{ gap: GameTheme.spacing.md }}>
-        <GameText variant="title">Crime</GameText>
-        <ActionCard
-          description="Fast cash, bad fingerprints. Clean runs pay. Messy ones leave your shoes remembered."
-          disabled={!!game.sessionToken || !game.canAct('storeRobbery')}
-          label={game.sessionToken ? 'Server Soon' : game.getCooldownLabel('storeRobbery')}
-          meta="Rob Store | raises heat | fines feed Server Bank"
-          onPress={game.runStoreRobbery}
-          title="Store Robbery"
-          tone="danger"
-        />
-        <ActionCard
-          description="Pay a patrol officer to forget your name. Sometimes they forget the wrong thing."
-          disabled={!!game.sessionToken || game.wallet < 5_000}
-          label={game.sessionToken ? 'Server Soon' : game.wallet < 5_000 ? 'Need $5k' : 'Pay $5k'}
-          meta="Lay Low alternative later | bribe feeds Server Bank"
-          onPress={game.bribeOfficer}
-          title="Bribe Officer"
-          tone="ember"
-        />
-        <HubCard
-          detail="Dialogue pressure, persuasion, suspicion, and knowing when to hang up."
-          meta="Crime | heat | suspicion"
-          status="MVP Next"
-          title="Scam Call"
-          tone="danger"
-        />
-        <HubCard
-          detail="Scout, entry, inside, vault, loot, escape, cleanup. A whole bad evening."
-          meta="Crime | multi-phase | high cooldown"
-          status="Later"
-          title="Heist"
-          tone="danger"
-        />
-      </View>
-
-      <View style={{ gap: GameTheme.spacing.md }}>
-        <GameText variant="title">Enterprises</GameText>
-        {enterpriseJobs.map((job) => (
           <HubCard
-            key={job.title}
-            detail={job.detail}
-            meta="Bank funded | inventory | long-term state"
+            detail="Fast money leaves fingerprints. Heat, jail, fines, bribes, and suspicious phone calls."
+            meta="Store Robbery, Scam Call, Heist, Bribe Officer, Lay Low"
+            onPress={() => setActiveHub('crime')}
+            status="Risky"
+            title="Crime"
+            tone="danger"
+          />
+          <HubCard
+            detail="Long-term bank-funded businesses with inventory, timers, and production."
+            meta="Farming, Manufacturing"
+            onPress={() => setActiveHub('enterprises')}
             status="Later"
-            title={job.title}
+            title="Enterprises"
             tone="echo"
           />
-        ))}
-      </View>
+          <HubCard
+            detail="Illegal operations, suspicion, raids, distribution, and properties with bad paperwork."
+            meta="Operations, Smuggling, Fronts"
+            onPress={() => setActiveHub('underworld')}
+            status="Later"
+            title="The Underworld"
+            tone="danger"
+          />
+          <HubCard
+            detail="Shared world projects funded by player activity, contributions, and city movement."
+            meta="City Work Orders, contracts, shared rewards"
+            onPress={() => setActiveHub('community')}
+            status="Later"
+            title="Community Contracts"
+            tone="echo"
+          />
+        </View>
+      ) : null}
 
-      <View style={{ gap: GameTheme.spacing.md }}>
-        <GameText variant="title">The Underworld</GameText>
-        <HubCard
-          detail="Shell properties, conversion timers, batches, suspicion, raids, and distribution."
-          meta="Illegal enterprise | bank setup | raid risk"
-          status="Later"
-          title="Operations"
-          tone="danger"
-        />
-        <HubCard
-          detail="Pick cargo, pick route, dodge inspections, and decide whether to abandon the run."
-          meta="Smuggling | route risk | timed cargo"
-          status="Later"
-          title="Smuggling"
-          tone="danger"
-        />
-      </View>
+      {activeHub ? (
+        <View style={{ alignItems: 'flex-start' }}>
+          <CasinoButton onPress={() => setActiveHub(null)} tone="echo">
+            Back To Job Board
+          </CasinoButton>
+        </View>
+      ) : null}
 
-      <View style={{ gap: GameTheme.spacing.md }}>
-        <GameText variant="title">Community Contracts</GameText>
-        <HubCard
-          detail="Shared city projects funded by player activity, contributions, and Server Bank movement."
-          meta="World goal | contributions | shared rewards"
-          status="Later"
-          title="City Work Orders"
-          tone="echo"
-        />
-      </View>
+      {activeHub === 'work' ? (
+        <View style={{ gap: GameTheme.spacing.md }}>
+          <TransportContractJob />
+          <SkillCheckJob />
+          <EmailSorterJob />
+          <ShiftJob />
+          <TruckerJob />
+          <HubCard
+            detail="A rare golden job card after normal work. Short challenge, huge payout, no mercy."
+            meta="job_95_legendary | rare spawn | reaction challenge"
+            status="Rare"
+            title="Legendary Job"
+            tone="success"
+          />
+          <GameCard>
+            <GameText variant="title">9-5 Rules</GameText>
+            <GameText tone="muted">
+              Legal work pays Wallet cash, adds job XP, records a transaction, respects cooldowns, and resolves server-side once the Railway API exists.
+            </GameText>
+          </GameCard>
+        </View>
+      ) : null}
+
+      {activeHub === 'grind' ? (
+        <View style={{ gap: GameTheme.spacing.md }}>
+          <ActionCard
+            description="Customers buy things. You make change. The register hates you today."
+            disabled={!!game.sessionToken || !game.canAct('storeClerk')}
+            label={game.sessionToken ? 'Server Soon' : game.getCooldownLabel('storeClerk')}
+            meta="Start Shift | +14 job XP | fatigue later"
+            onPress={game.runStoreClerk}
+            title="Store Clerk"
+            tone="success"
+          />
+          {grindJobs.map((job) => (
+            <HubCard
+              key={job.title}
+              detail={job.detail}
+              meta="Grind job | fatigue | repeatable shift"
+              status={job.title === 'Fishing' ? 'MVP Next' : 'Later'}
+              title={job.title}
+              tone="success"
+            />
+          ))}
+        </View>
+      ) : null}
+
+      {activeHub === 'night' ? (
+        <View style={{ gap: GameTheme.spacing.md }}>
+          {nightWalkerJobs.map((job) => (
+            <HubCard
+              key={job.title}
+              detail={job.detail}
+              meta="Night work | social risk | wallet payout"
+              status="Later"
+              title={job.title}
+              tone="ember"
+            />
+          ))}
+        </View>
+      ) : null}
+
+      {activeHub === 'crime' ? (
+        <View style={{ gap: GameTheme.spacing.md }}>
+          <ActionCard
+            description="Fast cash, bad fingerprints. Clean runs pay. Messy ones leave your shoes remembered."
+            disabled={!!game.sessionToken || !game.canAct('storeRobbery')}
+            label={game.sessionToken ? 'Server Soon' : game.getCooldownLabel('storeRobbery')}
+            meta="Rob Store | raises heat | fines feed Server Bank"
+            onPress={game.runStoreRobbery}
+            title="Store Robbery"
+            tone="danger"
+          />
+          <ActionCard
+            description="Pay a patrol officer to forget your name. Sometimes they forget the wrong thing."
+            disabled={!!game.sessionToken || game.wallet < 5_000}
+            label={game.sessionToken ? 'Server Soon' : game.wallet < 5_000 ? 'Need $5k' : 'Pay $5k'}
+            meta="Bribe feeds the house | heat reduction"
+            onPress={game.bribeOfficer}
+            title="Bribe Officer"
+            tone="ember"
+          />
+          <HubCard detail="Quiet choices. No flash. No regular spots." meta="Crime | heat reduction" status="Later" title="Lay Low" tone="ember" />
+          <HubCard detail="Dialogue pressure, persuasion, suspicion, and knowing when to hang up." meta="Crime | heat | suspicion" status="MVP Next" title="Scam Call" tone="danger" />
+          <HubCard detail="Scout, entry, inside, vault, loot, escape, cleanup. A whole bad evening." meta="Crime | multi-phase | high cooldown" status="Later" title="Heist" tone="danger" />
+        </View>
+      ) : null}
+
+      {activeHub === 'enterprises' ? (
+        <View style={{ gap: GameTheme.spacing.md }}>
+          {enterpriseJobs.map((job) => (
+            <HubCard key={job.title} detail={job.detail} meta="Bank funded | inventory | long-term state" status="Later" title={job.title} tone="echo" />
+          ))}
+        </View>
+      ) : null}
+
+      {activeHub === 'underworld' ? (
+        <View style={{ gap: GameTheme.spacing.md }}>
+          <HubCard detail="Shell properties, conversion timers, batches, suspicion, raids, and distribution." meta="Illegal enterprise | bank setup | raid risk" status="Later" title="Operations" tone="danger" />
+          <HubCard detail="Pick cargo, pick route, dodge inspections, and decide whether to abandon the run." meta="Smuggling | route risk | timed cargo" status="Later" title="Smuggling" tone="danger" />
+          <HubCard detail="Legal businesses used to cover illegal money, reduce suspicion, and generate quiet income." meta="Fronts | laundering | suspicion" status="Later" title="Fronts" tone="ember" />
+        </View>
+      ) : null}
+
+      {activeHub === 'community' ? (
+        <View style={{ gap: GameTheme.spacing.md }}>
+          <HubCard detail="Shared city projects funded by player activity, contributions, and world economy movement." meta="World goal | contributions | shared rewards" status="Later" title="City Work Orders" tone="echo" />
+        </View>
+      ) : null}
     </GameScreen>
   );
 }

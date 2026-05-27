@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 import { GameCard } from '@/components/game/game-card';
 import { GameText } from '@/components/game/game-text';
 import { ProgressBar } from '@/components/game/progress-bar';
+import { ResultCard } from '@/components/game/result-card';
 import { GameTheme } from '@/constants/theme';
 import { useElsewhereGame } from '@/hooks/use-elsewhere-game';
 import {
@@ -101,6 +102,17 @@ export function EmailSorterJob() {
 
           {resolution ? (
             <View style={{ gap: GameTheme.spacing.sm }}>
+              <ResultCard
+                details={[
+                  { label: 'Correct', value: String(resolution.results.filter((result) => result.outcome === 'correct').length) },
+                  { label: 'Emails', value: String(resolution.results.length) },
+                ]}
+                payout={resolution.payout}
+                summary={resolution.message}
+                title={resolution.failed ? 'Inbox Compromised' : 'Inbox Sorted'}
+                tone={resolution.failed ? 'bad' : 'good'}
+                xp={resolution.xp}
+              />
               {resolution.results.map((result) => (
                 <GameCard key={result.emailId} style={{ padding: GameTheme.spacing.md }}>
                   <GameText variant="label">{result.subject}</GameText>

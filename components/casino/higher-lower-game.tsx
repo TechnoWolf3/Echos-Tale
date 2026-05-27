@@ -7,6 +7,7 @@ import { PlayingCard } from '@/components/casino/playing-card';
 import { GameCard } from '@/components/game/game-card';
 import { GameText } from '@/components/game/game-text';
 import { ProgressBar } from '@/components/game/progress-bar';
+import { ResultCard } from '@/components/game/result-card';
 import { GameTheme } from '@/constants/theme';
 import { formatMoney, useElsewhereGame } from '@/hooks/use-elsewhere-game';
 import {
@@ -179,6 +180,10 @@ export function HigherLowerGame() {
   const streak = remoteRound?.streak ?? localSession?.streak ?? 0;
   const cashoutValue = remoteRound?.cashoutValue ?? localCashout(localSession);
   const message = remoteRound?.message ?? (localSession?.status === 'busted' ? 'Busted. Equal cards count as betrayal here.' : localSession?.status === 'cashed' ? 'Cashed out clean. Suspiciously mature.' : null);
+  const resolved = remoteRound?.status === 'resolved' || localSession?.status === 'busted' || localSession?.status === 'cashed';
+  const resultPayout = remoteRound?.payout ?? localSession?.payout ?? 0;
+  const resultStake = remoteRound?.bet ?? localSession?.bet ?? bet;
+  const resultProfit = remoteRound?.profit ?? resultPayout - resultStake;
   const progress = Math.min(1, streak / 10);
 
   return (
@@ -264,7 +269,22 @@ export function HigherLowerGame() {
       </View>
 
       {error ? <GameText tone="ember">{error}</GameText> : null}
-      {message ? <GameText tone={resultTone(remoteRound, localSession)}>{message}</GameText> : null}
+      {resolved && message ? (
+        <ResultCard
+          details={[
+            { label: 'Streak', value: String(streak) },
+            previousCard ? { label: 'Last Card', value: formatCard(previousCard) } : { label: 'Last Card', value: 'Unknown' },
+          ]}
+          payout={resultPayout}
+          profit={resultProfit}
+          stake={resultStake}
+          summary={message}
+          title={remoteRound?.result === 'cashout' || localSession?.status === 'cashed' ? 'Cashed Out' : 'Busted'}
+          tone={resultTone(remoteRound, localSession) === 'echo' ? 'good' : 'bad'}
+        />
+      ) : message ? (
+        <GameText tone={resultTone(remoteRound, localSession)}>{message}</GameText>
+      ) : null}
 
       {!playing ? (
         <View style={{ gap: GameTheme.spacing.md }}>

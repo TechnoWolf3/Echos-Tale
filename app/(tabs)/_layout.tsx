@@ -32,7 +32,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="games"
         options={{
-          title: 'Casino',
+          title: 'Games',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="suit.spade.fill" color={color} />,
         }}
       />

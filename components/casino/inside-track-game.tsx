@@ -5,6 +5,7 @@ import { BetPicker } from '@/components/casino/bet-picker';
 import { CasinoButton } from '@/components/casino/casino-button';
 import { GameCard } from '@/components/game/game-card';
 import { GameText } from '@/components/game/game-text';
+import { ResultCard } from '@/components/game/result-card';
 import { GameTheme } from '@/constants/theme';
 import { formatMoney, useElsewhereGame } from '@/hooks/use-elsewhere-game';
 import { createInsideTrackRace, runInsideTrack, TrackBetType, TrackRace, TrackResult } from '@/services/casino-service';
@@ -19,6 +20,17 @@ import {
 } from '@/services/echo-api';
 
 const localBetTypes: TrackBetType[] = ['win', 'place', 'show'];
+const podiumColors = {
+  1: '#F4B860',
+  2: '#C9D3E5',
+  3: '#C8895B',
+} as const;
+
+const podiumLabels = {
+  1: 'GOLD',
+  2: 'SILVER',
+  3: 'BRONZE',
+} as const;
 
 function formatClock(ms: number) {
   const seconds = Math.max(0, Math.ceil(ms / 1000));
@@ -94,13 +106,16 @@ function TrackLane({
   horse,
   isLeader,
   isTicket,
+  podiumRank,
 }: {
   displayProgress?: number;
   horse: EchoApiInsideTrackHorse;
   isLeader: boolean;
   isTicket: boolean;
+  podiumRank?: 1 | 2 | 3;
 }) {
   const visualProgress = displayProgress ?? horse.progress ?? 0;
+  const podiumColor = podiumRank ? podiumColors[podiumRank] : null;
   const progress = useRef(new Animated.Value(Math.max(0, Math.min(1, visualProgress / 1000)))).current;
 
   useEffect(() => {
@@ -119,9 +134,41 @@ function TrackLane({
   return (
     <View style={{ gap: GameTheme.spacing.xs }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: GameTheme.spacing.sm }}>
-        <GameText tone={isTicket ? 'echo' : isLeader ? 'ember' : 'primary'} variant="caption">
-          #{horse.number} {horse.name}
-        </GameText>
+        <View style={{ alignItems: 'center', flexDirection: 'row', flex: 1, flexWrap: 'wrap', gap: GameTheme.spacing.xs }}>
+          <GameText style={podiumColor ? { color: podiumColor } : undefined} tone={isLeader ? 'ember' : isTicket ? 'echo' : 'primary'} variant="caption">
+            #{horse.number} {horse.name}
+          </GameText>
+          {isTicket ? (
+            <View
+              style={{
+                backgroundColor: 'rgba(169, 243, 255, 0.08)',
+                borderColor: GameTheme.colors.echo,
+                borderRadius: 999,
+                borderWidth: 1,
+                paddingHorizontal: GameTheme.spacing.xs,
+                paddingVertical: 1,
+              }}>
+              <GameText tone="echo" variant="caption">
+                TICKET
+              </GameText>
+            </View>
+          ) : null}
+          {podiumRank ? (
+            <View
+              style={{
+                backgroundColor: `${podiumColor}22`,
+                borderColor: podiumColor ?? GameTheme.colors.border,
+                borderRadius: 999,
+                borderWidth: 1,
+                paddingHorizontal: GameTheme.spacing.xs,
+                paddingVertical: 1,
+              }}>
+              <GameText style={{ color: podiumColor ?? GameTheme.colors.text }} variant="caption">
+                {podiumLabels[podiumRank]}
+              </GameText>
+            </View>
+          ) : null}
+        </View>
         <GameText tone="faint" variant="caption">
           {Math.round(horse.progress ?? 0)}/1000
         </GameText>
@@ -137,16 +184,16 @@ function TrackLane({
         }}>
         <Animated.View
           style={{
-            backgroundColor: isLeader ? GameTheme.colors.ember : isTicket ? GameTheme.colors.echo : GameTheme.colors.violet,
+            backgroundColor: podiumColor ?? GameTheme.colors.violet,
             borderRadius: 999,
             height: '100%',
-            opacity: 0.72,
+            opacity: podiumRank ? 0.82 : isTicket ? 0.86 : 0.72,
             width,
           }}>
           <View
             style={{
               alignItems: 'center',
-              backgroundColor: isLeader ? GameTheme.colors.ember : GameTheme.colors.panelRaised,
+              backgroundColor: podiumColor ?? GameTheme.colors.panelRaised,
               borderColor: GameTheme.colors.background,
               borderRadius: 999,
               borderWidth: 2,
@@ -157,7 +204,7 @@ function TrackLane({
               top: -5,
               width: 30,
             }}>
-            <GameText tone={isLeader ? 'primary' : 'echo'} variant="caption">
+            <GameText style={podiumRank ? { color: GameTheme.colors.background } : undefined} tone={podiumRank ? 'primary' : 'echo'} variant="caption">
               {horse.number}
             </GameText>
           </View>
@@ -236,6 +283,19 @@ function getVisualProgress(
   return Math.max(0, Math.min(990, rawProgress + (rawProgress - average) * 4 + rankBoost + leaderBoost));
 }
 
+function getLivePodiumRanks(race: EchoApiInsideTrackRace, leaderNumber?: number) {
+  const rankedHorses =
+    race.phase === 'results' && race.finalOrder?.length
+      ? race.finalOrder
+      : [...race.horses].sort(
+          (a, b) => getVisualProgress(b, race, leaderNumber) - getVisualProgress(a, race, leaderNumber)
+        );
+
+  return new Map(
+    rankedHorses.slice(0, 3).map((horse, index) => [horse.number, (index + 1) as 1 | 2 | 3])
+  );
+}
+
 function RemoteInsideTrack() {
   const game = useElsewhereGame();
   const { applyRemoteProfile, now, sessionToken } = game;
@@ -297,6 +357,7 @@ function RemoteInsideTrack() {
   );
 
   const leaderNumber = race?.leader?.number ?? [...(race?.horses ?? [])].sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0))[0]?.number;
+  const podiumRanks = race ? getLivePodiumRanks(race, leaderNumber) : new Map<number, 1 | 2 | 3>();
   const selectedWinPayout = selectedHorse ? Math.floor(amount * getOddsForBet(selectedHorse, 'win')) : 0;
   const selectedPlacePayout = selectedHorse ? Math.floor(amount * getOddsForBet(selectedHorse, 'place')) : 0;
   const selectedShowPayout = selectedHorse ? Math.floor(amount * getOddsForBet(selectedHorse, 'show')) : 0;
@@ -361,32 +422,42 @@ function RemoteInsideTrack() {
               isLeader={horse.number === leaderNumber}
               isTicket={race.myTicket?.horseNumber === horse.number}
               key={horse.number}
+              podiumRank={podiumRanks.get(horse.number)}
             />
           ))}
         </View>
       ) : null}
 
       {race.myTicket ? (
-        <View
-          style={{
-            backgroundColor: GameTheme.colors.backgroundSoft,
-            borderColor: race.myTicket.status === 'won' ? GameTheme.colors.success : GameTheme.colors.echo,
-            borderRadius: GameTheme.radius.sm,
-            borderWidth: 1,
-            gap: GameTheme.spacing.xs,
-            padding: GameTheme.spacing.sm,
-          }}>
-          <GameText tone="echo" variant="label">
-            Locked Ticket
-          </GameText>
-          <GameText tone="muted">{ticketLabel(race.myTicket)}</GameText>
-          {race.myTicket.status && race.myTicket.status !== 'active' ? (
-            <GameText tone={race.myTicket.status === 'won' ? 'echo' : 'faint'} variant="caption">
-              Result: {race.myTicket.status.toUpperCase()}
-              {race.myTicket.payout ? ` | Paid ${formatMoney(race.myTicket.payout)}` : ''}
+        race.myTicket.status && race.myTicket.status !== 'active' ? (
+          <ResultCard
+            details={[
+              { label: 'Horse', value: `#${race.myTicket.horseNumber} ${race.myTicket.horseName}` },
+              { label: 'Ticket', value: race.myTicket.betType.toUpperCase() },
+            ]}
+            payout={race.myTicket.payout ?? 0}
+            profit={race.myTicket.profit ?? (race.myTicket.payout ?? 0) - race.myTicket.amount}
+            stake={race.myTicket.amount}
+            summary={race.myTicket.status === 'won' ? 'Ticket paid at the rail.' : 'Ticket did not survive the finish.'}
+            title={race.myTicket.status === 'won' ? 'Inside Track Win' : 'Inside Track Loss'}
+            tone={race.myTicket.status === 'won' ? 'good' : 'bad'}
+          />
+        ) : (
+          <View
+            style={{
+              backgroundColor: GameTheme.colors.backgroundSoft,
+              borderColor: GameTheme.colors.echo,
+              borderRadius: GameTheme.radius.sm,
+              borderWidth: 1,
+              gap: GameTheme.spacing.xs,
+              padding: GameTheme.spacing.sm,
+            }}>
+            <GameText tone="echo" variant="label">
+              Locked Ticket
             </GameText>
-          ) : null}
-        </View>
+            <GameText tone="muted">{ticketLabel(race.myTicket)}</GameText>
+          </View>
+        )
       ) : race.phase === 'betting' ? (
         <View style={{ gap: GameTheme.spacing.md }}>
           <GameText tone="muted">
@@ -524,7 +595,17 @@ function LocalInsideTrack() {
         </CasinoButton>
         <CasinoButton onPress={newRace}>New Card</CasinoButton>
       </View>
-      {result ? <GameText tone={result.won ? 'echo' : 'muted'}>{result.message}</GameText> : null}
+      {result ? (
+        <ResultCard
+          details={[{ label: 'Horse', value: `#${horseNumber}` }, { label: 'Ticket', value: betType.toUpperCase() }]}
+          payout={result.payout}
+          profit={result.payout - amount}
+          stake={amount}
+          summary={result.message}
+          title={result.won ? 'Inside Track Win' : 'Inside Track Loss'}
+          tone={result.won ? 'good' : 'bad'}
+        />
+      ) : null}
     </GameCard>
   );
 }

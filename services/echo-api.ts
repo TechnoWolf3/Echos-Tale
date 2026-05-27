@@ -1,4 +1,5 @@
 export type EchoApiProfile = {
+  account_number?: string | null;
   accountNumber?: string | null;
   bankBalance: number;
   discordUserId: string | null;
@@ -61,6 +62,64 @@ export type EchoApiHigherLowerRound = {
   result?: 'bust' | 'cashout' | null;
   status: 'playing' | 'resolved';
   streak: number;
+};
+
+export type EchoApiHigherLowerTableStatus = 'closed' | 'expired' | 'lobby' | 'playing' | 'resolved';
+
+export type EchoApiHigherLowerTablePlayer = {
+  alive?: boolean;
+  bet?: number | null;
+  displayName?: string;
+  feeAmount?: number;
+  paid?: boolean;
+  payout?: number;
+  pick?: 'higher' | 'lower' | 'same' | null;
+  profit?: number;
+  profileId?: string;
+  result?: string | null;
+  seatIndex?: number;
+  status?: string;
+  streak?: number;
+  userId?: string;
+};
+
+export type EchoApiHigherLowerTableResult = {
+  fromCard?: EchoApiCard | null;
+  message?: string;
+  resolvedPlayers?: EchoApiHigherLowerTablePlayer[];
+  toCard?: EchoApiCard | null;
+};
+
+export type EchoApiHigherLowerTable = {
+  allPicked?: boolean;
+  currentCard?: EchoApiCard | null;
+  gameType?: 'higher_lower';
+  hostDisplayName?: string;
+  hostProfileId?: string;
+  hostUserId?: string;
+  id?: string;
+  lastResult?: EchoApiHigherLowerTableResult | null;
+  maxPlayers?: number;
+  players: EchoApiHigherLowerTablePlayer[];
+  previousCard?: EchoApiCard | null;
+  profile?: EchoApiProfile;
+  status: EchoApiHigherLowerTableStatus;
+  tableId: string;
+  timestamps?: {
+    createdAt?: string;
+    expiresAt?: string;
+    updatedAt?: string;
+  };
+};
+
+export type EchoApiHigherLowerTablesResponse = {
+  tables: EchoApiHigherLowerTable[];
+};
+
+export type EchoApiHigherLowerTableResponse = {
+  profile?: EchoApiProfile;
+  status?: string;
+  table?: EchoApiHigherLowerTable;
 };
 
 export type EchoApiInsideTrackPhase = 'betting' | 'racing' | 'results';
@@ -165,6 +224,7 @@ export type EchoApiRecurringDeposit = {
 };
 
 export type EchoApiBankDashboard = {
+  account_number?: string | null;
   accountNumber: string | null;
   bankBalance: number;
   loan: EchoApiBankLoan | null;
@@ -294,6 +354,33 @@ export async function echoApiRequest<T>(path: string, options: ApiOptions = {}):
   }
 }
 
+async function echoApiRequestAny<T>(paths: string[], options: ApiOptions = {}): Promise<T> {
+  let lastNotFound: EchoApiError | null = null;
+
+  for (const path of paths) {
+    try {
+      return await echoApiRequest<T>(path, options);
+    } catch (error) {
+      if (error instanceof EchoApiError && error.status === 404) {
+        lastNotFound = error;
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw lastNotFound ?? new EchoApiError('Echo API route was not found.', 404);
+}
+
+function higherLowerTablePaths(suffix = '') {
+  return [
+    `/v1/casino/higher-lower/tables${suffix}`,
+    `/v1/casino/higherlower/tables${suffix}`,
+    `/v1/casino/higher-or-lower/tables${suffix}`,
+  ];
+}
+
 export function createDiscordLinkCode() {
   return echoApiRequest<DiscordLinkCodeResponse>('/v1/link-codes', {
     body: { client: 'echo-mobile' },
@@ -371,6 +458,93 @@ export function cashOutHigherLowerRound(sessionToken: string, gameId: string) {
     method: 'POST',
     token: sessionToken,
   });
+}
+
+export function fetchHigherLowerTables(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequestAny<EchoApiHigherLowerTablesResponse | EchoApiHigherLowerTable[]>(higherLowerTablePaths(), {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function createHigherLowerTable(sessionToken: string) {
+  return echoApiRequestAny<EchoApiHigherLowerTable | EchoApiHigherLowerTableResponse>(higherLowerTablePaths(), {
+    body: { announceToDiscord: true, source: 'app' },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchHigherLowerTable(sessionToken: string, tableId: string, signal?: AbortSignal) {
+  return echoApiRequestAny<EchoApiHigherLowerTable | EchoApiHigherLowerTableResponse>(
+    higherLowerTablePaths(`/${encodeURIComponent(tableId)}`),
+    {
+      signal,
+      token: sessionToken,
+    }
+  );
+}
+
+export function joinHigherLowerTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiHigherLowerTable | EchoApiHigherLowerTableResponse>(
+    higherLowerTablePaths(`/${encodeURIComponent(tableId)}/join`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function leaveHigherLowerTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiHigherLowerTable | EchoApiHigherLowerTableResponse>(
+    higherLowerTablePaths(`/${encodeURIComponent(tableId)}/leave`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function betHigherLowerTable(sessionToken: string, tableId: string, amount: number) {
+  return echoApiRequestAny<EchoApiHigherLowerTable | EchoApiHigherLowerTableResponse>(
+    higherLowerTablePaths(`/${encodeURIComponent(tableId)}/bet`),
+    {
+      body: { amount },
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function startHigherLowerTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiHigherLowerTable | EchoApiHigherLowerTableResponse>(
+    higherLowerTablePaths(`/${encodeURIComponent(tableId)}/start`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function guessHigherLowerTable(sessionToken: string, tableId: string, pick: 'higher' | 'lower' | 'same') {
+  return echoApiRequestAny<EchoApiHigherLowerTable | EchoApiHigherLowerTableResponse>(
+    higherLowerTablePaths(`/${encodeURIComponent(tableId)}/guess`),
+    {
+      body: { pick },
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function cashOutHigherLowerTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiHigherLowerTable | EchoApiHigherLowerTableResponse>(
+    higherLowerTablePaths(`/${encodeURIComponent(tableId)}/cashout`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
 }
 
 export function fetchInsideTrackCurrent(sessionToken: string, signal?: AbortSignal) {

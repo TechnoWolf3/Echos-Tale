@@ -19,6 +19,7 @@ import {
   fetchBankDashboard,
   fetchBankLoans,
   fetchBankTransactions,
+  fetchEchoProfile,
   repayBankLoan,
   setRecurringDeposit,
   transferBankFunds,
@@ -43,11 +44,77 @@ function formatDate(value?: string | null) {
 }
 
 function transactionLabel(transaction: EchoApiBankTransaction) {
-  const displayAmount = transaction.displayAmount ?? Number(transaction.meta?.amount ?? transaction.amount);
-  const sign = displayAmount > 0 ? '+' : displayAmount < 0 ? '-' : '';
   const cleanType = transaction.type.replace(/_/g, ' ');
+  const amount = getStatementAmount(transaction);
+  const sign = amount > 0 ? '+' : amount < 0 ? '-' : '';
 
-  return `${cleanType} | ${sign}${formatMoney(Math.abs(displayAmount))}`;
+  return `${cleanType} | ${sign}${formatMoney(Math.abs(amount))}`;
+}
+
+function getStatementAmount(transaction: EchoApiBankTransaction) {
+  const rawAmount = Number(transaction.displayAmount ?? transaction.meta?.amount ?? transaction.amount);
+  const magnitude = Math.abs(Number.isFinite(rawAmount) ? rawAmount : 0);
+  const type = transaction.type.toLowerCase();
+
+  if (
+    type.includes('bet') ||
+    type.includes('buy') ||
+    type.includes('withdraw') ||
+    type.includes('transfer_out') ||
+    type.includes('fee') ||
+    type.includes('fine') ||
+    type.includes('tax_paid') ||
+    type.includes('blood_tax') ||
+    type.includes('bribe') ||
+    type.includes('loss') ||
+    type.includes('repair') ||
+    type.includes('loan_manual_payment') ||
+    type.includes('loan_recovery')
+  ) {
+    return -magnitude;
+  }
+
+  if (
+    type.includes('win') ||
+    type.includes('payout') ||
+    type.includes('deposit') ||
+    type.includes('transfer_in') ||
+    type.includes('reward') ||
+    type.includes('disbursed') ||
+    type.includes('refund')
+  ) {
+    return magnitude;
+  }
+
+  return rawAmount;
+}
+
+function getStatementTone(amount: number) {
+  if (amount > 0) {
+    return {
+      backgroundColor: 'rgba(131, 243, 181, 0.06)',
+      borderColor: 'rgba(131, 243, 181, 0.36)',
+      tone: 'echo' as const,
+    };
+  }
+
+  if (amount < 0) {
+    return {
+      backgroundColor: 'rgba(255, 107, 138, 0.07)',
+      borderColor: 'rgba(255, 107, 138, 0.36)',
+      tone: 'ember' as const,
+    };
+  }
+
+  return {
+    backgroundColor: GameTheme.colors.panel,
+    borderColor: GameTheme.colors.border,
+    tone: 'muted' as const,
+  };
+}
+
+function getBankAccountNumber(dashboard: EchoApiBankDashboard | null) {
+  return dashboard?.accountNumber ?? dashboard?.account_number ?? null;
 }
 
 function SectionTabs({ activeTab, onChange }: { activeTab: BankTab; onChange: (tab: BankTab) => void }) {
@@ -140,9 +207,10 @@ export default function BankScreen() {
   const [transferAccount, setTransferAccount] = useState('');
   const [recurringAmount, setRecurringAmount] = useState('5000');
   const [message, setMessage] = useState('The Reserve is quiet.');
+  const [bankDiagnostic, setBankDiagnostic] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const accountNumber = dashboard?.accountNumber ?? linkedAccountNumber;
+  const accountNumber = getBankAccountNumber(dashboard) ?? linkedAccountNumber;
   const loan = loans?.loan ?? dashboard?.loan ?? null;
   const recurringDeposit = dashboard?.recurringDeposit ?? null;
   const jailed = game.jailUntil !== null && game.jailUntil > game.now;
@@ -154,8 +222,29 @@ export default function BankScreen() {
       }
 
       try {
-        const [nextDashboard, nextTransactions, nextLoans] = await Promise.all([
-          fetchBankDashboard(sessionToken, signal),
+        let dashboardFallback = false;
+        const nextDashboard = await fetchBankDashboard(sessionToken, signal).catch(async (dashboardError) => {
+          dashboardFallback = true;
+          const detail =
+            dashboardError instanceof EchoApiError
+              ? `Dashboard route returned HTTP ${dashboardError.status}: ${dashboardError.message}`
+              : 'Dashboard route could not be reached.';
+          const profile = await fetchEchoProfile(sessionToken, signal);
+
+          setBankDiagnostic(detail);
+
+          return {
+            accountNumber: profile.accountNumber ?? profile.account_number ?? null,
+            bankBalance: profile.bankBalance,
+            loan: null,
+            profile,
+            recurringDeposit: null,
+            totalWealth: profile.walletBalance + profile.bankBalance,
+            walletBalance: profile.walletBalance,
+          } satisfies EchoApiBankDashboard;
+        });
+
+        const [nextTransactions, nextLoans] = await Promise.all([
           fetchBankTransactions(sessionToken, signal).catch(() => ({ transactions: [] })),
           fetchBankLoans(sessionToken, signal).catch(() => null),
         ]);
@@ -164,7 +253,14 @@ export default function BankScreen() {
         setTransactions(nextTransactions.transactions);
         setLoans(nextLoans);
         applyRemoteProfile(nextDashboard.profile, { announce: false });
-        setMessage('The Reserve accepted your credentials.');
+        if (!dashboardFallback) {
+          setBankDiagnostic(null);
+        }
+        setMessage(
+          dashboardFallback
+            ? 'Reserve profile loaded. Advanced records are still waiting on the dashboard route.'
+            : 'The Reserve accepted your credentials.'
+        );
       } catch (error) {
         if (signal?.aborted) {
           return;
@@ -290,10 +386,10 @@ export default function BankScreen() {
             Echo Reserve Account Number
           </GameText>
           <GameText tone="echo" variant="title">
-            {accountNumber ?? 'Pending Railway'}
+            {accountNumber ?? 'Not Exposed Yet'}
           </GameText>
           <GameText tone="faint" variant="caption">
-            Existing Discord account numbers are displayed as-is. The app does not generate or replace them.
+            Existing Discord account numbers are displayed as-is. If this is blank, Railway needs to expose the stored account_number field.
           </GameText>
         </View>
         {jailed ? (
@@ -405,14 +501,25 @@ export default function BankScreen() {
       {activeTab === 'statement' ? (
         <View style={{ gap: GameTheme.spacing.md }}>
           {transactions.length ? (
-            transactions.slice(0, 10).map((transaction) => (
-              <GameCard key={transaction.id} style={{ padding: GameTheme.spacing.md }}>
-                <GameText>{transactionLabel(transaction)}</GameText>
-                <GameText tone="faint" variant="caption">
-                  {formatDate(transaction.createdAt)}
-                </GameText>
-              </GameCard>
-            ))
+            transactions.slice(0, 10).map((transaction) => {
+              const amount = getStatementAmount(transaction);
+              const tone = getStatementTone(amount);
+
+              return (
+                <GameCard
+                  key={transaction.id}
+                  style={{
+                    backgroundColor: tone.backgroundColor,
+                    borderColor: tone.borderColor,
+                    padding: GameTheme.spacing.md,
+                  }}>
+                  <GameText tone={tone.tone}>{transactionLabel(transaction)}</GameText>
+                  <GameText tone="faint" variant="caption">
+                    {formatDate(transaction.createdAt)}
+                  </GameText>
+                </GameCard>
+              );
+            })
           ) : (
             <GameCard>
               <GameText tone="muted">No statement rows returned yet.</GameText>
@@ -422,9 +529,21 @@ export default function BankScreen() {
       ) : null}
 
       <GameCard style={{ padding: GameTheme.spacing.md }}>
-        <GameText tone={message.includes('rejected') || message.includes('closed') ? 'ember' : 'muted'}>
-          {message}
-        </GameText>
+        <View style={{ gap: GameTheme.spacing.sm }}>
+          <GameText tone={message.includes('rejected') || message.includes('closed') ? 'ember' : 'muted'}>
+            {message}
+          </GameText>
+          {bankDiagnostic ? (
+            <GameText tone="faint" variant="caption">
+              {bankDiagnostic}
+            </GameText>
+          ) : null}
+          <View style={{ alignItems: 'flex-start' }}>
+            <CasinoButton disabled={loading || !sessionToken} onPress={() => void loadBank()} tone="echo">
+              Refresh Reserve
+            </CasinoButton>
+          </View>
+        </View>
       </GameCard>
     </GameScreen>
   );

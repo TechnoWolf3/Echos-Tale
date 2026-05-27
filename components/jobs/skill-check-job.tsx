@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 import { GameCard } from '@/components/game/game-card';
 import { GameText } from '@/components/game/game-text';
 import { ProgressBar } from '@/components/game/progress-bar';
+import { ResultCard } from '@/components/game/result-card';
 import { GameTheme } from '@/constants/theme';
 import { useElsewhereGame } from '@/hooks/use-elsewhere-game';
 import {
@@ -23,6 +24,7 @@ const colorStyles: Record<SkillColor, string> = {
 export function SkillCheckJob() {
   const game = useElsewhereGame();
   const [session, setSession] = useState<SkillCheckSession | null>(null);
+  const [result, setResult] = useState<{ message: string; payout: number; success: boolean; xp: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   const ready = game.canAct('skillCheck');
@@ -54,6 +56,7 @@ export function SkillCheckJob() {
       return;
     }
 
+    setResult(null);
     setSession(startSkillCheckSession(game.jobLevel));
   };
 
@@ -79,6 +82,7 @@ export function SkillCheckJob() {
       tone: result.success ? 'good' : 'bad',
       xp: result.xp,
     });
+    setResult(result);
     setSession({ ...session, input, status: 'resolved' });
   }, [game, session]);
 
@@ -113,23 +117,35 @@ export function SkillCheckJob() {
       </View>
 
       {!session || session.status === 'resolved' ? (
-        <Pressable
-          accessibilityRole="button"
-          disabled={!ready}
-          onPress={start}
-          style={({ pressed }) => ({
-            alignItems: 'center',
-            backgroundColor: ready ? GameTheme.colors.backgroundSoft : GameTheme.colors.panel,
-            borderColor: ready ? GameTheme.colors.success : GameTheme.colors.border,
-            borderRadius: GameTheme.radius.sm,
-            borderWidth: 1,
-            opacity: pressed ? 0.78 : ready ? 1 : 0.52,
-            padding: GameTheme.spacing.md,
-          })}>
-          <GameText tone={ready ? 'echo' : 'faint'} variant="label">
-            {ready ? 'Start Check' : cooldownLabel}
-          </GameText>
-        </Pressable>
+        <View style={{ gap: GameTheme.spacing.md }}>
+          {result ? (
+            <ResultCard
+              details={[{ label: 'Input', value: session?.input.join(', ') || 'None' }]}
+              payout={result.payout}
+              summary={result.message}
+              title={result.success ? 'Pattern Matched' : 'Pattern Failed'}
+              tone={result.success ? 'good' : 'bad'}
+              xp={result.xp}
+            />
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            disabled={!ready}
+            onPress={start}
+            style={({ pressed }) => ({
+              alignItems: 'center',
+              backgroundColor: ready ? GameTheme.colors.backgroundSoft : GameTheme.colors.panel,
+              borderColor: ready ? GameTheme.colors.success : GameTheme.colors.border,
+              borderRadius: GameTheme.radius.sm,
+              borderWidth: 1,
+              opacity: pressed ? 0.78 : ready ? 1 : 0.52,
+              padding: GameTheme.spacing.md,
+            })}>
+            <GameText tone={ready ? 'echo' : 'faint'} variant="label">
+              {ready ? 'Start Check' : cooldownLabel}
+            </GameText>
+          </Pressable>
+        </View>
       ) : (
         <View style={{ gap: GameTheme.spacing.md }}>
           <View style={{ flexDirection: 'row', gap: GameTheme.spacing.sm }}>

@@ -4,13 +4,15 @@ import { Pressable, View } from 'react-native';
 import { GameCard } from '@/components/game/game-card';
 import { GameText } from '@/components/game/game-text';
 import { ProgressBar } from '@/components/game/progress-bar';
+import { ResultCard } from '@/components/game/result-card';
 import { GameTheme } from '@/constants/theme';
 import { useElsewhereGame } from '@/hooks/use-elsewhere-game';
-import { applyShiftChoice, resolveShiftSession, ShiftSession, startShiftSession } from '@/services/job-service';
+import { applyShiftChoice, resolveShiftSession, ShiftResolution, ShiftSession, startShiftSession } from '@/services/job-service';
 
 export function ShiftJob() {
   const game = useElsewhereGame();
   const [session, setSession] = useState<ShiftSession | null>(null);
+  const [result, setResult] = useState<ShiftResolution | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const ready = game.canAct('shift');
 
@@ -22,6 +24,7 @@ export function ShiftJob() {
 
   const start = () => {
     if (ready) {
+      setResult(null);
       setSession(startShiftSession());
     }
   };
@@ -54,6 +57,7 @@ export function ShiftJob() {
       payout: result.payout,
       xp: result.xp,
     });
+    setResult(result);
     setSession({ ...session, status: 'resolved' });
   };
 
@@ -68,23 +72,35 @@ export function ShiftJob() {
       </View>
 
       {!session || session.status === 'resolved' ? (
-        <Pressable
-          accessibilityRole="button"
-          disabled={!ready}
-          onPress={start}
-          style={({ pressed }) => ({
-            alignItems: 'center',
-            backgroundColor: ready ? GameTheme.colors.backgroundSoft : GameTheme.colors.panel,
-            borderColor: ready ? GameTheme.colors.success : GameTheme.colors.border,
-            borderRadius: GameTheme.radius.sm,
-            borderWidth: 1,
-            opacity: pressed ? 0.78 : ready ? 1 : 0.5,
-            padding: GameTheme.spacing.md,
-          })}>
-          <GameText tone={ready ? 'echo' : 'faint'} variant="label">
-            {ready ? 'Start Shift' : game.getCooldownLabel('shift')}
-          </GameText>
-        </Pressable>
+        <View style={{ gap: GameTheme.spacing.md }}>
+          {result ? (
+            <ResultCard
+              details={[{ label: 'Events', value: String(session?.eventIndex ?? 0) }]}
+              payout={result.payout}
+              summary={result.message}
+              title="Shift Complete"
+              tone="good"
+              xp={result.xp}
+            />
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            disabled={!ready}
+            onPress={start}
+            style={({ pressed }) => ({
+              alignItems: 'center',
+              backgroundColor: ready ? GameTheme.colors.backgroundSoft : GameTheme.colors.panel,
+              borderColor: ready ? GameTheme.colors.success : GameTheme.colors.border,
+              borderRadius: GameTheme.radius.sm,
+              borderWidth: 1,
+              opacity: pressed ? 0.78 : ready ? 1 : 0.5,
+              padding: GameTheme.spacing.md,
+            })}>
+            <GameText tone={ready ? 'echo' : 'faint'} variant="label">
+              {ready ? 'Start Shift' : game.getCooldownLabel('shift')}
+            </GameText>
+          </Pressable>
+        </View>
       ) : (
         <View style={{ gap: GameTheme.spacing.md }}>
           <ProgressBar progress={Math.max(0, Math.min(1, progress))} />

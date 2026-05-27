@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 import { GameCard } from '@/components/game/game-card';
 import { GameText } from '@/components/game/game-text';
 import { ProgressBar } from '@/components/game/progress-bar';
+import { ResultCard } from '@/components/game/result-card';
 import { GameTheme } from '@/constants/theme';
 import { useElsewhereGame } from '@/hooks/use-elsewhere-game';
 import {
@@ -11,16 +12,19 @@ import {
   selectTransportChoice,
   startTransportSession,
   TransportSession,
+  TransportResolution,
   transportSteps,
 } from '@/services/job-service';
 
 export function TransportContractJob() {
   const game = useElsewhereGame();
   const [session, setSession] = useState<TransportSession | null>(null);
+  const [result, setResult] = useState<TransportResolution | null>(null);
   const ready = game.canAct('transportContract');
 
   const start = () => {
     if (ready) {
+      setResult(null);
       setSession(startTransportSession());
     }
   };
@@ -36,6 +40,7 @@ export function TransportContractJob() {
       tone: result.failed ? 'bad' : 'good',
       xp: result.xp,
     });
+    setResult(result);
     setSession({ ...nextSession, status: 'resolved' });
   };
 
@@ -69,23 +74,35 @@ export function TransportContractJob() {
       </View>
 
       {!session || session.status === 'resolved' ? (
-        <Pressable
-          accessibilityRole="button"
-          disabled={!ready}
-          onPress={start}
-          style={({ pressed }) => ({
-            alignItems: 'center',
-            backgroundColor: ready ? GameTheme.colors.backgroundSoft : GameTheme.colors.panel,
-            borderColor: ready ? GameTheme.colors.success : GameTheme.colors.border,
-            borderRadius: GameTheme.radius.sm,
-            borderWidth: 1,
-            opacity: pressed ? 0.78 : ready ? 1 : 0.5,
-            padding: GameTheme.spacing.md,
-          })}>
-          <GameText tone={ready ? 'echo' : 'faint'} variant="label">
-            {ready ? 'Start Contract' : game.getCooldownLabel('transportContract')}
-          </GameText>
-        </Pressable>
+        <View style={{ gap: GameTheme.spacing.md }}>
+          {result ? (
+            <ResultCard
+              details={[{ label: 'Risk', value: `${risk}%` }, { label: 'Bonus', value: `$${bonus.toLocaleString()}` }]}
+              payout={result.payout}
+              summary={result.message}
+              title={result.failed ? 'Contract Failed' : 'Contract Delivered'}
+              tone={result.failed ? 'bad' : 'good'}
+              xp={result.xp}
+            />
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            disabled={!ready}
+            onPress={start}
+            style={({ pressed }) => ({
+              alignItems: 'center',
+              backgroundColor: ready ? GameTheme.colors.backgroundSoft : GameTheme.colors.panel,
+              borderColor: ready ? GameTheme.colors.success : GameTheme.colors.border,
+              borderRadius: GameTheme.radius.sm,
+              borderWidth: 1,
+              opacity: pressed ? 0.78 : ready ? 1 : 0.5,
+              padding: GameTheme.spacing.md,
+            })}>
+            <GameText tone={ready ? 'echo' : 'faint'} variant="label">
+              {ready ? 'Start Contract' : game.getCooldownLabel('transportContract')}
+            </GameText>
+          </Pressable>
+        </View>
       ) : activeStep ? (
         <View style={{ gap: GameTheme.spacing.md }}>
           <ProgressBar progress={session.stepIndex / transportSteps.length} />

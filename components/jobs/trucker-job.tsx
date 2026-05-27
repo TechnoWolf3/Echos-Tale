@@ -4,11 +4,13 @@ import { Pressable, View } from 'react-native';
 import { GameCard } from '@/components/game/game-card';
 import { GameText } from '@/components/game/game-text';
 import { ProgressBar } from '@/components/game/progress-bar';
+import { ResultCard } from '@/components/game/result-card';
 import { GameTheme } from '@/constants/theme';
 import { useElsewhereGame } from '@/hooks/use-elsewhere-game';
 import {
   generateTruckerManifest,
   resolveTruckerRun,
+  ShiftResolution,
   startTruckerRun,
   TruckerManifest,
   TruckerSession,
@@ -19,6 +21,7 @@ export function TruckerJob() {
   const [manifest, setManifest] = useState<TruckerManifest>(() => generateTruckerManifest());
   const [refreshCount, setRefreshCount] = useState(0);
   const [session, setSession] = useState<TruckerSession | null>(null);
+  const [result, setResult] = useState<ShiftResolution | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -38,6 +41,7 @@ export function TruckerJob() {
 
   const startRun = () => {
     if (!session || session.status === 'paid') {
+      setResult(null);
       setSession(startTruckerRun(manifest));
     }
   };
@@ -56,6 +60,7 @@ export function TruckerJob() {
       payout: result.payout,
       xp: result.xp,
     });
+    setResult(result);
     setSession({ ...session, paidAt: now, status: 'paid' });
     setManifest(generateTruckerManifest());
     setRefreshCount(0);
@@ -109,7 +114,18 @@ export function TruckerJob() {
           </Pressable>
         </View>
       ) : (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
+        <View style={{ gap: GameTheme.spacing.md }}>
+          {result ? (
+            <ResultCard
+              details={[{ label: 'Route', value: manifest.route }, { label: 'Distance', value: `${manifest.distanceKm.toLocaleString()} km` }]}
+              payout={result.payout}
+              summary={result.message}
+              title="Freight Delivered"
+              tone="good"
+              xp={result.xp}
+            />
+          ) : null}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
           <Pressable
             accessibilityRole="button"
             onPress={startRun}
@@ -141,6 +157,7 @@ export function TruckerJob() {
               New Manifest ({5 - refreshCount})
             </GameText>
           </Pressable>
+          </View>
         </View>
       )}
 
