@@ -444,15 +444,18 @@ export async function echoApiRequest<T>(path: string, options: ApiOptions = {}):
     throw new EchoApiError('Railway API URL is not configured yet.', 0, 'API_NOT_CONFIGURED');
   }
 
+  const hasBody = options.body !== undefined;
+  const method = options.method ?? 'GET';
+
   try {
     const response = await fetch(`${echoApiBaseUrl}${path}`, {
-      body: options.body ? JSON.stringify(options.body) : undefined,
+      body: hasBody ? JSON.stringify(options.body) : undefined,
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/json',
+        ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
         ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
       },
-      method: options.method ?? 'GET',
+      method,
       signal: options.signal,
     });
 
@@ -466,7 +469,7 @@ export async function echoApiRequest<T>(path: string, options: ApiOptions = {}):
       throw error;
     }
 
-    throw new EchoApiError('Could not reach the Railway API.', 0, 'NETWORK_ERROR');
+    throw new EchoApiError(`Could not reach the Railway API for ${method} ${path}.`, 0, 'NETWORK_ERROR');
   }
 }
 
@@ -508,8 +511,7 @@ function ritualStartPaths(ritualId: string) {
 }
 
 export function createDiscordLinkCode() {
-  return echoApiRequest<DiscordLinkCodeResponse>('/v1/link-codes', {
-    body: { client: 'echo-mobile' },
+  return echoApiRequest<DiscordLinkCodeResponse>('/v1/link-codes?client=echo-mobile', {
     method: 'POST',
   });
 }
