@@ -97,6 +97,30 @@ function readableStatus(status?: string) {
   return status.replace(/_/g, ' ');
 }
 
+function hashString(value: string) {
+  let hash = 2166136261;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function shuffleForDisplay<T>(items: T[], seed: string) {
+  const shuffled = [...items];
+  let state = hashString(seed) || 1;
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    const swapIndex = state % (index + 1);
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+
+  return shuffled;
+}
+
 function applyResponseProfile(
   response: EchoApiRitualSessionResponse,
   session: EchoApiRitualSession,
@@ -456,6 +480,10 @@ function EchoSeatingView({
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [order, setOrder] = useState<(string | null)[]>(() => Array.from({ length: seatCount }, () => null));
   const clues = session?.clues ?? readState<string[]>(session, 'clues', []);
+  const displayedClues = useMemo(
+    () => shuffleForDisplay(clues, `${readSessionId(session) ?? session?.ritualId ?? 'echo-seating'}:${clues.join('|')}`),
+    [clues, session]
+  );
   const correctOrder = session?.correctOrder ?? readState<string[]>(session, 'correctOrder', []);
   const submittedOrder = session?.submittedOrder ?? session?.lastSubmittedOrder ?? null;
 
@@ -529,12 +557,12 @@ function EchoSeatingView({
           </CasinoButton>
         ))}
       </View>
-      {clues.length > 0 ? (
+      {displayedClues.length > 0 ? (
         <GameCard style={{ backgroundColor: GameTheme.colors.backgroundSoft }}>
           <GameText tone="faint" variant="label">
-            Clues
+            Shuffled Clues
           </GameText>
-          {clues.map((clue, index) => (
+          {displayedClues.map((clue, index) => (
             <GameText key={`${clue}-${index}`} tone="muted">
               {index + 1}. {clue}
             </GameText>
