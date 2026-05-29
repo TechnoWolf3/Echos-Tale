@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Animated, Dimensions, Easing, Image, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { BrandAssets } from '@/constants/brand-assets';
 import { GameTheme } from '@/constants/theme';
@@ -13,6 +13,7 @@ const HOLD_MS = 520;
 const EXIT_MS = 920;
 const MAX_BRIDGE_WAIT_MS = 9000;
 const TITLE_ASPECT_RATIO = 1369 / 258;
+const FALLBACK_SCREEN_WIDTH = Dimensions.get('window').width || 390;
 
 export function EchoLoadScreen() {
   const { width } = useWindowDimensions();
@@ -134,7 +135,8 @@ export function EchoLoadScreen() {
     return null;
   }
 
-  const logoSize = Math.min(width * 0.76, 420);
+  const screenWidth = width || FALLBACK_SCREEN_WIDTH;
+  const logoSize = Math.min(screenWidth * 0.76, 420);
   const pulseScale = pulse.interpolate({
     inputRange: [0, 1],
     outputRange: [1, 1.08],
@@ -143,7 +145,7 @@ export function EchoLoadScreen() {
     inputRange: [0, 1],
     outputRange: [0.28, 0.55],
   });
-  const titleWidth = Math.min(width * 0.9, 620);
+  const titleWidth = Math.min(screenWidth * 0.9, 620);
 
   return (
     <Animated.View
@@ -179,6 +181,7 @@ export function EchoLoadScreen() {
         <Image
           accessibilityIgnoresInvertColors
           accessibilityLabel={BrandAssets.echo.alt}
+          onError={() => setIsLogoReady(true)}
           onLoadEnd={() => setIsLogoReady(true)}
           resizeMode="contain"
           source={echoLogo}
@@ -195,6 +198,7 @@ export function EchoLoadScreen() {
         ]}>
         <Image
           accessibilityLabel="Echo's Tale"
+          onError={() => setIsTitleReady(true)}
           onLoadEnd={() => setIsTitleReady(true)}
           resizeMode="contain"
           source={echoTitle}

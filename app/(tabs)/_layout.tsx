@@ -1,34 +1,100 @@
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { GameTheme } from '@/constants/theme';
 
 const isWeb = Platform.OS === 'web';
+const WEB_TAB_HEIGHT = 76;
+
+function WebTabBar({ descriptors, navigation, state }: BottomTabBarProps) {
+  return (
+    <View
+      style={{
+        alignItems: 'stretch',
+        backgroundColor: GameTheme.colors.backgroundSoft,
+        borderTopColor: GameTheme.colors.border,
+        borderTopWidth: 1,
+        bottom: 0,
+        flexDirection: 'row',
+        height: WEB_TAB_HEIGHT,
+        left: 0,
+        paddingBottom: 10,
+        paddingTop: 8,
+        position: 'absolute',
+        right: 0,
+      }}>
+      {state.routes.map((route, index) => {
+        const options = descriptors[route.key].options;
+        const isFocused = state.index === index;
+        const color = isFocused ? GameTheme.colors.echo : GameTheme.colors.textFaint;
+        const label =
+          typeof options.tabBarLabel === 'string'
+            ? options.tabBarLabel
+            : options.title ?? route.name;
+
+        return (
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={isFocused ? { selected: true } : undefined}
+            key={route.key}
+            onPress={() => {
+              const event = navigation.emit({
+                canPreventDefault: true,
+                target: route.key,
+                type: 'tabPress',
+              });
+
+              if (!isFocused && !event.defaultPrevented) {
+                navigation.navigate(route.name, route.params);
+              }
+            }}
+            style={{
+              alignItems: 'center',
+              flex: 1,
+              gap: 3,
+              justifyContent: 'center',
+              minWidth: 0,
+            }}>
+            {options.tabBarIcon?.({ color, focused: isFocused, size: 24 })}
+            <Text
+              numberOfLines={1}
+              style={{
+                color,
+                fontSize: 12,
+                fontWeight: '800',
+                lineHeight: 16,
+              }}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 
 export default function TabLayout() {
   return (
     <Tabs
+      tabBar={isWeb ? (props) => <WebTabBar {...props} /> : undefined}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: GameTheme.colors.echo,
+        tabBarHideOnKeyboard: true,
         tabBarButton: HapticTab,
         tabBarInactiveTintColor: GameTheme.colors.textFaint,
         tabBarStyle: {
           backgroundColor: GameTheme.colors.backgroundSoft,
           borderTopColor: GameTheme.colors.border,
-          height: isWeb ? 64 : undefined,
-          overflow: 'visible',
-          paddingBottom: isWeb ? 8 : undefined,
-          paddingTop: isWeb ? 6 : undefined,
+          height: isWeb ? WEB_TAB_HEIGHT : undefined,
         },
         tabBarItemStyle: {
-          height: isWeb ? 50 : undefined,
+          height: isWeb ? WEB_TAB_HEIGHT : undefined,
           justifyContent: 'center',
-          paddingBottom: 0,
-          paddingTop: 0,
         },
         tabBarLabelStyle: {
           fontSize: 12,
