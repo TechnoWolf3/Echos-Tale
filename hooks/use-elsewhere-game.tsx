@@ -4,8 +4,11 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 import { EchoApiError, EchoApiProfile, fetchEchoProfile, isEchoApiConfigured } from '@/services/echo-api';
 import {
   clearStoredSessionToken,
+  clearStoredDevPassword,
   getStoredLinkedProfile,
+  getStoredDevPassword,
   getStoredSessionToken,
+  setStoredDevPassword,
   setStoredLinkedProfile,
   setStoredSessionToken,
 } from '@/services/session-storage';
@@ -41,6 +44,7 @@ type ElsewhereGame = {
   jailUntil: number | null;
   jobLevel: number;
   jobXp: number;
+  devPassword: string | null;
   linkedProfile: EchoApiProfile | null;
   linkStatus: 'local' | 'loading' | 'linked' | 'error';
   lastSyncedAt: number | null;
@@ -51,6 +55,7 @@ type ElsewhereGame = {
   applyRemoteProfile: (profile: EchoApiProfile, options?: { announce?: boolean }) => void;
   bribeOfficer: () => void;
   canAct: (id: CooldownId) => boolean;
+  clearDevPassword: () => Promise<void>;
   clearJail: () => void;
   clearLinkedSession: () => Promise<void>;
   getCooldownLabel: (id: CooldownId) => string;
@@ -62,6 +67,7 @@ type ElsewhereGame = {
   runDailyRitual: () => void;
   runStoreClerk: () => void;
   runStoreRobbery: () => void;
+  saveDevPassword: (password: string) => Promise<void>;
   setLinkedSession: (token: string, profile: EchoApiProfile) => Promise<void>;
   tick: () => void;
 };
@@ -102,6 +108,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
   const [heat, setHeat] = useState(12);
   const [jobLevel, setJobLevel] = useState(1);
   const [jobXp, setJobXp] = useState(0);
+  const [devPassword, setDevPassword] = useState<string | null>(null);
   const [cooldowns, setCooldowns] = useState<Cooldowns>({});
   const [jailUntil, setJailUntil] = useState<number | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -166,6 +173,24 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
     setLinkStatus('local');
     pushEvent('Discord bridge disconnected. Local testing ledger is back in charge.', 'neutral');
   }, [pushEvent]);
+
+  const saveDevPassword = useCallback(async (password: string) => {
+    const nextPassword = password.trim();
+
+    if (!nextPassword) {
+      await clearStoredDevPassword();
+      setDevPassword(null);
+      return;
+    }
+
+    await setStoredDevPassword(nextPassword);
+    setDevPassword(nextPassword);
+  }, []);
+
+  const clearDevPassword = useCallback(async () => {
+    await clearStoredDevPassword();
+    setDevPassword(null);
+  }, []);
 
   const refreshRemoteProfile = useCallback(async () => {
     if (!sessionToken || refreshInFlight.current) {
@@ -282,6 +307,20 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       mounted = false;
     };
   }, [applyRemoteProfile, pushEvent]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    getStoredDevPassword().then((storedPassword) => {
+      if (mounted) {
+        setDevPassword(storedPassword);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!sessionToken) {
@@ -538,9 +577,11 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       applyRemoteProfile,
       bribeOfficer,
       canAct,
+      clearDevPassword,
       clearJail,
       clearLinkedSession,
       cooldowns,
+      devPassword,
       events,
       getCooldownLabel,
       heat,
@@ -560,6 +601,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       runDailyRitual,
       runStoreClerk,
       runStoreRobbery,
+      saveDevPassword,
       serverBank,
       sessionToken,
       setLinkedSession,
@@ -572,9 +614,11 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       applyRemoteProfile,
       bribeOfficer,
       canAct,
+      clearDevPassword,
       clearJail,
       clearLinkedSession,
       cooldowns,
+      devPassword,
       events,
       getCooldownLabel,
       heat,
@@ -594,6 +638,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       runDailyRitual,
       runStoreClerk,
       runStoreRobbery,
+      saveDevPassword,
       serverBank,
       sessionToken,
       setLinkedSession,

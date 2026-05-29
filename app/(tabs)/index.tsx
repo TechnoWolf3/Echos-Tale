@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
-import { View } from 'react-native';
-import type { Href } from 'expo-router';
+import { Pressable, View } from 'react-native';
+import { router, type Href } from 'expo-router';
 
 import { GameCard } from '@/components/game/game-card';
 import { GameScreen } from '@/components/game/game-screen';
 import { GameText } from '@/components/game/game-text';
 import { HubCard } from '@/components/game/hub-card';
 import { StatPill } from '@/components/game/stat-pill';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { GameTheme } from '@/constants/theme';
 import { formatMoney, useElsewhereGame } from '@/hooks/use-elsewhere-game';
 
@@ -26,14 +27,40 @@ export default function CityScreen() {
 
   return (
     <GameScreen backgroundAsset="echo" backgroundOpacity={0.24}>
-      <View style={{ gap: GameTheme.spacing.sm, paddingTop: GameTheme.spacing.xl }}>
-        <GameText tone="faint" variant="label">
-          Echo of Elsewhere
-        </GameText>
-        <GameText variant="display">Elsewhere</GameText>
-        <GameText tone="muted">
-          A crooked little city where every button has receipts.
-        </GameText>
+      <View
+        style={{
+          alignItems: 'flex-start',
+          flexDirection: 'row',
+          gap: GameTheme.spacing.md,
+          justifyContent: 'space-between',
+          paddingTop: GameTheme.spacing.xl,
+        }}>
+        <View style={{ flex: 1, gap: GameTheme.spacing.sm }}>
+          <GameText tone="faint" variant="label">
+            Echo of Elsewhere
+          </GameText>
+          <GameText variant="display">Elsewhere</GameText>
+          <GameText tone="muted">
+            A crooked little city where every button has receipts.
+          </GameText>
+        </View>
+        <Pressable
+          accessibilityLabel="Open settings"
+          accessibilityRole="button"
+          onPress={() => router.push('/settings')}
+          style={({ pressed }) => ({
+            alignItems: 'center',
+            backgroundColor: GameTheme.colors.backgroundSoft,
+            borderColor: GameTheme.colors.borderBright,
+            borderRadius: GameTheme.radius.sm,
+            borderWidth: 1,
+            height: 44,
+            justifyContent: 'center',
+            opacity: pressed ? 0.72 : 1,
+            width: 44,
+          })}>
+          <IconSymbol color={GameTheme.colors.echo} name="gearshape.fill" size={24} />
+        </Pressable>
       </View>
 
       <GameCard elevated>
@@ -51,18 +78,16 @@ export default function CityScreen() {
 
       <View style={{ gap: GameTheme.spacing.md }}>
         <GameText variant="title">Tonight&apos;s Doors</GameText>
-        <HubCard
-          detail={
-            game.linkedProfile
-              ? `Linked as ${game.linkedProfile.displayName}. The city ledger is reading Railway.`
-              : 'Connect the phone app to the Discord bot ledger through Railway.'
-          }
-          href="/link-discord"
-          meta={game.sessionToken ? 'Discord identity | auto-refresh ready | Railway API' : 'Discord identity | shared balances | Railway API'}
-          status={game.sessionToken ? 'Linked' : game.linkStatus === 'loading' ? 'Syncing' : 'Link'}
-          title="Discord Bridge"
-          tone="echo"
-        />
+        {!game.sessionToken ? (
+          <HubCard
+            detail="Connect the phone app to the Discord bot ledger through Railway."
+            href="/link-discord"
+            meta="Discord identity | shared balances | Railway API"
+            status={game.linkStatus === 'loading' ? 'Syncing' : 'Link'}
+            title="Discord Bridge"
+            tone="echo"
+          />
+        ) : null}
         <HubCard
           detail="Stability. Security. Silence. Store clean money, move funds, track account history."
           href={'/bank' as Href}

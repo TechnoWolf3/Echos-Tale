@@ -5,6 +5,7 @@ import type { EchoApiProfile } from '@/services/echo-api';
 
 const sessionTokenKey = 'echo.sessionToken';
 const sessionProfileKey = 'echo.linkedProfile';
+const devPasswordKey = 'echo.devPassword';
 const sessionCookieName = 'echo_session_token';
 const sessionMaxAgeSeconds = 60 * 60 * 24 * 90;
 
@@ -122,4 +123,44 @@ export async function clearStoredSessionToken() {
   }
 
   await SecureStore.deleteItemAsync(sessionTokenKey);
+}
+
+export async function getStoredDevPassword() {
+  if (Platform.OS === 'web') {
+    try {
+      return webStorage()?.getItem(devPasswordKey) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  return SecureStore.getItemAsync(devPasswordKey);
+}
+
+export async function setStoredDevPassword(password: string) {
+  if (Platform.OS === 'web') {
+    try {
+      webStorage()?.setItem(devPasswordKey, password);
+    } catch {
+      // Backend controls will simply ask again if browser storage is unavailable.
+    }
+
+    return;
+  }
+
+  await SecureStore.setItemAsync(devPasswordKey, password);
+}
+
+export async function clearStoredDevPassword() {
+  if (Platform.OS === 'web') {
+    try {
+      webStorage()?.removeItem(devPasswordKey);
+    } catch {
+      // Nothing to clear if browser storage is unavailable.
+    }
+
+    return;
+  }
+
+  await SecureStore.deleteItemAsync(devPasswordKey);
 }

@@ -17,6 +17,7 @@ const MAPPING = {
   'briefcase.fill': 'work',
   'suit.spade.fill': 'casino',
   'paperplane.fill': 'send',
+  'gearshape.fill': 'settings',
   sparkles: 'auto-awesome',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
