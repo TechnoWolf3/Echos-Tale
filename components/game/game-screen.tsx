@@ -1,9 +1,11 @@
 import { ReactNode } from 'react';
 import { Image } from 'expo-image';
-import { ScrollView, StyleProp, View, ViewStyle } from 'react-native';
+import { Platform, ScrollView, StyleProp, View, ViewStyle } from 'react-native';
 
 import { BrandAssetKey, BrandAssets } from '@/constants/brand-assets';
 import { GameTheme } from '@/constants/theme';
+
+const isWeb = Platform.OS === 'web';
 
 type GameScreenProps = {
   backgroundAsset?: BrandAssetKey;
@@ -51,7 +53,7 @@ export function GameScreen({ backgroundAsset, backgroundOpacity = 0.18, children
           {
             flexGrow: 1,
             padding: GameTheme.spacing.lg,
-            paddingBottom: GameTheme.spacing.xl + 20,
+            paddingBottom: isWeb ? GameTheme.spacing.xl + 88 : GameTheme.spacing.xl + 20,
           },
         ]}>
         <View

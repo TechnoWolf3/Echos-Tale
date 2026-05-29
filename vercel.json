@@ -10,6 +10,18 @@
       "destination": "https://echo-of-elsewhere-production.up.railway.app/:path*"
     },
     {
+      "source": "/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/_expo/:path*",
+      "destination": "/_expo/:path*"
+    },
+    {
+      "source": "/favicon.ico",
+      "destination": "/favicon.ico"
+    },
+    {
       "source": "/:path*",
       "destination": "/"
     }

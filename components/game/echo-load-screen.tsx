@@ -1,6 +1,5 @@
-import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { BrandAssets } from '@/constants/brand-assets';
 import { GameTheme } from '@/constants/theme';
@@ -180,8 +179,8 @@ export function EchoLoadScreen() {
         <Image
           accessibilityIgnoresInvertColors
           accessibilityLabel={BrandAssets.echo.alt}
-          contentFit="contain"
-          onLoad={() => setIsLogoReady(true)}
+          onLoadEnd={() => setIsLogoReady(true)}
+          resizeMode="contain"
           source={echoLogo}
           style={styles.logo}
         />
@@ -196,8 +195,8 @@ export function EchoLoadScreen() {
         ]}>
         <Image
           accessibilityLabel="Echo's Tale"
-          contentFit="contain"
-          onLoad={() => setIsTitleReady(true)}
+          onLoadEnd={() => setIsTitleReady(true)}
+          resizeMode="contain"
           source={echoTitle}
           style={{
             height: titleWidth / TITLE_ASPECT_RATIO,

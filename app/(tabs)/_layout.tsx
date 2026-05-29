@@ -1,9 +1,12 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Platform } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { GameTheme } from '@/constants/theme';
+
+const isWeb = Platform.OS === 'web';
 
 export default function TabLayout() {
   return (
@@ -16,10 +19,22 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: GameTheme.colors.backgroundSoft,
           borderTopColor: GameTheme.colors.border,
+          height: isWeb ? 64 : undefined,
+          overflow: 'visible',
+          paddingBottom: isWeb ? 8 : undefined,
+          paddingTop: isWeb ? 6 : undefined,
+        },
+        tabBarItemStyle: {
+          height: isWeb ? 50 : undefined,
+          justifyContent: 'center',
+          paddingBottom: 0,
+          paddingTop: 0,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '700',
+          lineHeight: 16,
+          marginTop: 2,
         },
       }}>
       <Tabs.Screen
