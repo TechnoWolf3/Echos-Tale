@@ -2,7 +2,13 @@ import { AppState } from 'react-native';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { EchoApiError, EchoApiProfile, fetchEchoProfile, isEchoApiConfigured } from '@/services/echo-api';
-import { clearStoredSessionToken, getStoredSessionToken, setStoredSessionToken } from '@/services/session-storage';
+import {
+  clearStoredSessionToken,
+  getStoredLinkedProfile,
+  getStoredSessionToken,
+  setStoredLinkedProfile,
+  setStoredSessionToken,
+} from '@/services/session-storage';
 
 type CooldownId =
   | 'emailSorter'
@@ -144,6 +150,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
   const setLinkedSession = useCallback(
     async (token: string, profile: EchoApiProfile) => {
       await setStoredSessionToken(token);
+      await setStoredLinkedProfile(profile);
       setSessionToken(token);
       applyRemoteProfile(profile);
     },
@@ -222,6 +229,12 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
 
       setSessionToken(storedToken);
 
+      const cachedProfile = await getStoredLinkedProfile();
+
+      if (cachedProfile && mounted) {
+        applyRemoteProfile(cachedProfile, { announce: false });
+      }
+
       try {
         const profile = await fetchEchoProfile(storedToken);
 
@@ -230,17 +243,29 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
         }
 
         applyRemoteProfile(profile, { announce: false });
+        await setStoredLinkedProfile(profile);
         pushEvent(`Railway ledger restored for ${profile.displayName}.`, 'echo');
-      } catch {
+      } catch (error) {
         if (!mounted) {
           return;
         }
 
-        await clearStoredSessionToken();
-        setSessionToken(null);
-        setLinkedProfile(null);
-        setLinkStatus('local');
-        pushEvent('Saved Railway session could not be restored. Link Discord again when ready.', 'bad');
+        if (error instanceof EchoApiError && error.status === 401) {
+          await clearStoredSessionToken();
+          setSessionToken(null);
+          setLinkedProfile(null);
+          setLinkStatus('local');
+          pushEvent('Saved Railway session expired. Link Discord again when ready.', 'bad');
+          return;
+        }
+
+        setLinkStatus(cachedProfile ? 'linked' : 'error');
+        pushEvent(
+          cachedProfile
+            ? 'Railway sync failed, but your saved Discord bridge stayed linked. Try again in a moment.'
+            : 'Saved Railway session could not sync yet. The bridge token is still stored.',
+          'bad'
+        );
       }
     };
 

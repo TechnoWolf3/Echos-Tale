@@ -1,7 +1,10 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
+import type { EchoApiProfile } from '@/services/echo-api';
+
 const sessionTokenKey = 'echo.sessionToken';
+const sessionProfileKey = 'echo.linkedProfile';
 const sessionCookieName = 'echo_session_token';
 const sessionMaxAgeSeconds = 60 * 60 * 24 * 90;
 
@@ -63,6 +66,19 @@ export async function getStoredSessionToken() {
   return SecureStore.getItemAsync(sessionTokenKey);
 }
 
+export async function getStoredLinkedProfile() {
+  if (Platform.OS !== 'web') {
+    return null;
+  }
+
+  try {
+    const value = webStorage()?.getItem(sessionProfileKey);
+    return value ? (JSON.parse(value) as EchoApiProfile) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function setStoredSessionToken(token: string) {
   if (Platform.OS === 'web') {
     writeCookie(sessionCookieName, token);
@@ -79,12 +95,25 @@ export async function setStoredSessionToken(token: string) {
   await SecureStore.setItemAsync(sessionTokenKey, token);
 }
 
+export async function setStoredLinkedProfile(profile: EchoApiProfile) {
+  if (Platform.OS !== 'web') {
+    return;
+  }
+
+  try {
+    webStorage()?.setItem(sessionProfileKey, JSON.stringify(profile));
+  } catch {
+    // Profile cache is only a convenience for web restore; the token remains the source of auth.
+  }
+}
+
 export async function clearStoredSessionToken() {
   if (Platform.OS === 'web') {
     clearCookie(sessionCookieName);
 
     try {
       webStorage()?.removeItem(sessionTokenKey);
+      webStorage()?.removeItem(sessionProfileKey);
     } catch {
       // Nothing else to clear if localStorage is unavailable.
     }
