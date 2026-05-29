@@ -49,6 +49,63 @@ export type EchoApiBlackjackRound = {
   status: 'playing' | 'resolved';
 };
 
+export type EchoApiBlackjackTableStatus = 'closed' | 'expired' | 'lobby' | 'playing' | 'resolved' | string;
+
+export type EchoApiBlackjackTablePlayer = {
+  activeHand?: number;
+  bet?: number | null;
+  displayName?: string;
+  feeAmount?: number;
+  hands?: EchoApiBlackjackHand[];
+  paid?: boolean;
+  payout?: number;
+  profit?: number;
+  profileId?: string;
+  result?: string | null;
+  seatIndex?: number;
+  status?: string;
+  userId?: string;
+};
+
+export type EchoApiBlackjackTable = {
+  allowedActions?: ('double' | 'hit' | 'split' | 'stand')[];
+  currentPlayerId?: string | null;
+  currentProfileId?: string | null;
+  dealer?: EchoApiBlackjackHand;
+  dealerHand?: EchoApiBlackjackHand;
+  gameType?: 'blackjack';
+  hostDisplayName?: string;
+  hostProfileId?: string;
+  hostUserId?: string;
+  id?: string;
+  lastResult?: {
+    message?: string;
+    players?: EchoApiBlackjackTablePlayer[];
+  } | null;
+  maxPlayers?: number;
+  message?: string;
+  players: EchoApiBlackjackTablePlayer[];
+  profile?: EchoApiProfile;
+  status: EchoApiBlackjackTableStatus;
+  tableId: string;
+  timestamps?: {
+    createdAt?: string;
+    expiresAt?: string;
+    updatedAt?: string;
+  };
+  turnIndex?: number;
+};
+
+export type EchoApiBlackjackTablesResponse = {
+  tables: EchoApiBlackjackTable[];
+};
+
+export type EchoApiBlackjackTableResponse = {
+  profile?: EchoApiProfile;
+  status?: string;
+  table?: EchoApiBlackjackTable;
+};
+
 export type EchoApiHigherLowerRound = {
   allowedActions: ('cashout' | 'higher' | 'lower' | 'same')[];
   bet: number;
@@ -160,6 +217,8 @@ export type EchoApiInsideTrackTicket = {
   profit?: number;
   raceId: string;
   status?: 'active' | 'lost' | 'payout_failed' | 'refunded' | 'won';
+  userDisplayName?: string;
+  userId?: string;
 };
 
 export type EchoApiInsideTrackRace = {
@@ -178,6 +237,7 @@ export type EchoApiInsideTrackRace = {
   raceName: string;
   raceNumber: number;
   raceStartsAt: string;
+  tickets?: EchoApiInsideTrackTicket[];
   trackCondition: EchoApiInsideTrackCondition | string;
   type?: 'major' | 'standard';
 };
@@ -529,6 +589,13 @@ function higherLowerTablePaths(suffix = '') {
   ];
 }
 
+function blackjackTablePaths(suffix = '') {
+  return [
+    `/v1/casino/blackjack/tables${suffix}`,
+    `/v1/casino/blackjack-table/tables${suffix}`,
+  ];
+}
+
 function ritualStartPaths(ritualId: string) {
   const ids = Array.from(new Set([ritualId, ritualId.replace(/_/g, '-')]));
 
@@ -697,6 +764,112 @@ export function guessHigherLowerTable(sessionToken: string, tableId: string, pic
 export function cashOutHigherLowerTable(sessionToken: string, tableId: string) {
   return echoApiRequestAny<EchoApiHigherLowerTable | EchoApiHigherLowerTableResponse>(
     higherLowerTablePaths(`/${encodeURIComponent(tableId)}/cashout`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function fetchBlackjackTables(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequestAny<EchoApiBlackjackTablesResponse | EchoApiBlackjackTable[]>(blackjackTablePaths(), {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function createBlackjackTable(sessionToken: string) {
+  return echoApiRequestAny<EchoApiBlackjackTable | EchoApiBlackjackTableResponse>(blackjackTablePaths(), {
+    body: { announceToDiscord: true, source: 'app' },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchBlackjackTable(sessionToken: string, tableId: string, signal?: AbortSignal) {
+  return echoApiRequestAny<EchoApiBlackjackTable | EchoApiBlackjackTableResponse>(
+    blackjackTablePaths(`/${encodeURIComponent(tableId)}`),
+    {
+      signal,
+      token: sessionToken,
+    }
+  );
+}
+
+export function joinBlackjackTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiBlackjackTable | EchoApiBlackjackTableResponse>(
+    blackjackTablePaths(`/${encodeURIComponent(tableId)}/join`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function leaveBlackjackTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiBlackjackTable | EchoApiBlackjackTableResponse>(
+    blackjackTablePaths(`/${encodeURIComponent(tableId)}/leave`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function betBlackjackTable(sessionToken: string, tableId: string, amount: number) {
+  return echoApiRequestAny<EchoApiBlackjackTable | EchoApiBlackjackTableResponse>(
+    blackjackTablePaths(`/${encodeURIComponent(tableId)}/bet`),
+    {
+      body: { amount },
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function startBlackjackTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiBlackjackTable | EchoApiBlackjackTableResponse>(
+    blackjackTablePaths(`/${encodeURIComponent(tableId)}/start`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function hitBlackjackTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiBlackjackTable | EchoApiBlackjackTableResponse>(
+    blackjackTablePaths(`/${encodeURIComponent(tableId)}/hit`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function standBlackjackTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiBlackjackTable | EchoApiBlackjackTableResponse>(
+    blackjackTablePaths(`/${encodeURIComponent(tableId)}/stand`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function doubleBlackjackTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiBlackjackTable | EchoApiBlackjackTableResponse>(
+    blackjackTablePaths(`/${encodeURIComponent(tableId)}/double`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function splitBlackjackTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiBlackjackTable | EchoApiBlackjackTableResponse>(
+    blackjackTablePaths(`/${encodeURIComponent(tableId)}/split`),
     {
       method: 'POST',
       token: sessionToken,

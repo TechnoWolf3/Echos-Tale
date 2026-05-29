@@ -222,12 +222,12 @@ function EchoWheelView({
 
     const segmentAngle = 360 / wheelSlices.length;
     const desiredAngle = 360 - targetIndex * segmentAngle;
-    const turns = 4;
+    const turns = 7;
     const toValue = turns + desiredAngle / 360;
 
     spinValue.setValue(0);
     Animated.timing(spinValue, {
-      duration: 1800,
+      duration: 3200,
       easing: Easing.out(Easing.cubic),
       toValue,
       useNativeDriver: true,
@@ -241,7 +241,7 @@ function EchoWheelView({
     setSpinIndex(nextSpin);
     spinValue.setValue(0);
     Animated.timing(spinValue, {
-      duration: 900,
+      duration: 1600,
       easing: Easing.in(Easing.cubic),
       toValue: 2,
       useNativeDriver: true,

@@ -101,6 +101,59 @@ function ticketLabel(ticket: EchoApiInsideTrackTicket) {
   return `#${ticket.horseNumber} ${ticket.horseName} | ${ticket.betType.toUpperCase()} ${formatMoney(ticket.amount)} | ${multiplier.toFixed(2)}x | ${formatMoney(payout)}`;
 }
 
+function bettorName(ticket: EchoApiInsideTrackTicket, index: number) {
+  return ticket.userDisplayName || `Ticket ${index + 1}`;
+}
+
+function RaceTickets({ myTicket, tickets }: { myTicket?: EchoApiInsideTrackTicket | null; tickets?: EchoApiInsideTrackTicket[] }) {
+  const visibleTickets = tickets && tickets.length > 0 ? tickets : myTicket ? [myTicket] : [];
+
+  if (visibleTickets.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={{ gap: GameTheme.spacing.sm }}>
+      <GameText variant="label">Rail Tickets</GameText>
+      {visibleTickets.map((ticket, index) => (
+        <View
+          key={`${ticket.userId ?? ticket.horseNumber}-${ticket.betType}-${ticket.amount}-${index}`}
+          style={{
+            backgroundColor:
+              myTicket &&
+              ticket.horseNumber === myTicket.horseNumber &&
+              ticket.betType === myTicket.betType &&
+              ticket.amount === myTicket.amount
+                ? 'rgba(169, 243, 255, 0.08)'
+                : GameTheme.colors.backgroundSoft,
+            borderColor:
+              myTicket &&
+              ticket.horseNumber === myTicket.horseNumber &&
+              ticket.betType === myTicket.betType &&
+              ticket.amount === myTicket.amount
+                ? GameTheme.colors.echo
+                : GameTheme.colors.border,
+            borderRadius: GameTheme.radius.sm,
+            borderWidth: 1,
+            gap: GameTheme.spacing.xs,
+            padding: GameTheme.spacing.sm,
+          }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: GameTheme.spacing.sm }}>
+            <GameText variant="label">{bettorName(ticket, index)}</GameText>
+            <GameText tone="ember" variant="label">
+              {ticket.betType.toUpperCase()}
+            </GameText>
+          </View>
+          <GameText tone="muted">
+            #{ticket.horseNumber} {ticket.horseName} | {formatMoney(ticket.amount)}
+            {ticket.status && ticket.status !== 'active' ? ` | ${ticket.status}` : ''}
+          </GameText>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function TrackLane({
   displayProgress,
   horse,
@@ -507,6 +560,8 @@ function RemoteInsideTrack() {
       ) : (
         <GameText tone="muted">Betting is closed. The rail is already making noise.</GameText>
       )}
+
+      <RaceTickets myTicket={race.myTicket} tickets={race.tickets} />
 
       {race.phase === 'results' && race.finalOrder?.length ? (
         <View style={{ gap: GameTheme.spacing.xs }}>

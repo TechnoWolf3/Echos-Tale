@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { BlackjackGame } from '@/components/casino/blackjack-game';
+import { BlackjackTableGame } from '@/components/casino/blackjack-table-game';
 import { BullshitGame } from '@/components/casino/bullshit-game';
 import { HigherLowerTableGame } from '@/components/casino/higher-lower-table-game';
 import { InsideTrackGame } from '@/components/casino/inside-track-game';
@@ -110,8 +111,8 @@ export default function GamesScreen() {
                 tone="echo"
               />
               <HubCard
-                detail="Beat the dealer before the table eats you. Multiplayer table wiring is next."
-                meta="Cards | dealer | split and double"
+                detail="Beat the dealer before the table eats you. Opens a shared table for app and Discord."
+                meta="Shared table | dealer | split and double"
                 onPress={() => setActiveCasinoGame('blackjack')}
                 status="Open"
                 title="Blackjack"
@@ -160,7 +161,7 @@ export default function GamesScreen() {
             </View>
           ) : null}
           {activeCasinoGame === 'higherLower' ? <HigherLowerTableGame autoCreate /> : null}
-          {activeCasinoGame === 'blackjack' ? <BlackjackGame /> : null}
+          {activeCasinoGame === 'blackjack' ? game.sessionToken ? <BlackjackTableGame autoCreate /> : <BlackjackGame /> : null}
           {activeCasinoGame === 'insideTrack' ? <InsideTrackGame /> : null}
           {activeCasinoGame === 'roulette' ? <RouletteGame /> : null}
           {activeCasinoGame === 'scratchCards' ? <ScratchCardsGame /> : null}

@@ -37,6 +37,7 @@ type ElsewhereGame = {
   cooldowns: Cooldowns;
   events: GameEvent[];
   heat: number;
+  isBridgeReady: boolean;
   jailUntil: number | null;
   jobLevel: number;
   jobXp: number;
@@ -106,6 +107,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [linkedProfile, setLinkedProfile] = useState<EchoApiProfile | null>(null);
   const [linkStatus, setLinkStatus] = useState<'local' | 'loading' | 'linked' | 'error'>('loading');
+  const [isBridgeReady, setIsBridgeReady] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
   const refreshInFlight = useRef(false);
@@ -213,6 +215,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
     const restoreSession = async () => {
       if (!isEchoApiConfigured) {
         setLinkStatus('local');
+        setIsBridgeReady(true);
         return;
       }
 
@@ -224,6 +227,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
 
       if (!storedToken) {
         setLinkStatus('local');
+        setIsBridgeReady(true);
         return;
       }
 
@@ -245,6 +249,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
         applyRemoteProfile(profile, { announce: false });
         await setStoredLinkedProfile(profile);
         pushEvent(`Railway ledger restored for ${profile.displayName}.`, 'echo');
+        setIsBridgeReady(true);
       } catch (error) {
         if (!mounted) {
           return;
@@ -256,6 +261,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
           setLinkedProfile(null);
           setLinkStatus('local');
           pushEvent('Saved Railway session expired. Link Discord again when ready.', 'bad');
+          setIsBridgeReady(true);
           return;
         }
 
@@ -266,6 +272,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
             : 'Saved Railway session could not sync yet. The bridge token is still stored.',
           'bad'
         );
+        setIsBridgeReady(true);
       }
     };
 
@@ -537,6 +544,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       events,
       getCooldownLabel,
       heat,
+      isBridgeReady,
       jailUntil,
       jobLevel,
       jobXp,
@@ -570,6 +578,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       events,
       getCooldownLabel,
       heat,
+      isBridgeReady,
       jailUntil,
       jobLevel,
       jobXp,
