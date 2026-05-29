@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export type EchoApiProfile = {
   account_number?: string | null;
   accountNumber?: string | null;
@@ -427,10 +429,13 @@ export class EchoApiError extends Error {
 }
 
 const rawEchoApiBaseUrl = process.env.EXPO_PUBLIC_ECHO_API_URL ?? process.env.EXPO_PUBLIC_API_URL ?? '';
+const useVercelApiProxy = Platform.OS === 'web' && process.env.NODE_ENV === 'production';
 const productionUnsafeApiUrl =
-  process.env.NODE_ENV === 'production' && /^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])/i.test(rawEchoApiBaseUrl);
+  !useVercelApiProxy &&
+  process.env.NODE_ENV === 'production' &&
+  /^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])/i.test(rawEchoApiBaseUrl);
 
-export const echoApiBaseUrl = productionUnsafeApiUrl ? '' : rawEchoApiBaseUrl.replace(/\/$/, '');
+export const echoApiBaseUrl = useVercelApiProxy ? '/echo-api' : productionUnsafeApiUrl ? '' : rawEchoApiBaseUrl.replace(/\/$/, '');
 export const isEchoApiConfigured = echoApiBaseUrl.length > 0;
 export const echoApiConfigError = productionUnsafeApiUrl
   ? 'Production API URL cannot use localhost or a loopback address.'

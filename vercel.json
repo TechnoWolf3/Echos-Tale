@@ -6,6 +6,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/echo-api/:path*",
+      "destination": "https://echo-of-elsewhere-production.up.railway.app/:path*"
+    },
+    {
       "source": "/:path*",
       "destination": "/"
     }
