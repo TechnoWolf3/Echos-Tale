@@ -426,8 +426,30 @@ export class EchoApiError extends Error {
   }
 }
 
-export const echoApiBaseUrl = process.env.EXPO_PUBLIC_ECHO_API_URL?.replace(/\/$/, '') ?? '';
+const rawEchoApiBaseUrl = process.env.EXPO_PUBLIC_ECHO_API_URL ?? process.env.EXPO_PUBLIC_API_URL ?? '';
+const productionUnsafeApiUrl =
+  process.env.NODE_ENV === 'production' && /^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])/i.test(rawEchoApiBaseUrl);
+
+export const echoApiBaseUrl = productionUnsafeApiUrl ? '' : rawEchoApiBaseUrl.replace(/\/$/, '');
 export const isEchoApiConfigured = echoApiBaseUrl.length > 0;
+export const echoApiConfigError = productionUnsafeApiUrl
+  ? 'Production API URL cannot use localhost or a loopback address.'
+  : echoApiBaseUrl
+    ? null
+    : 'Echo API URL is not configured.';
+
+const logApiFailure = (path: string, method: string, error: unknown) => {
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+
+  console.warn('[Echo API] request failed', {
+    error,
+    method,
+    path,
+    url: `${echoApiBaseUrl}${path}`,
+  });
+};
 
 async function readError(response: Response) {
   const payload = await response.json().catch(() => null);
@@ -441,7 +463,7 @@ async function readError(response: Response) {
 
 export async function echoApiRequest<T>(path: string, options: ApiOptions = {}): Promise<T> {
   if (!isEchoApiConfigured) {
-    throw new EchoApiError('Railway API URL is not configured yet.', 0, 'API_NOT_CONFIGURED');
+    throw new EchoApiError(echoApiConfigError ?? 'Railway API URL is not configured yet.', 0, 'API_NOT_CONFIGURED');
   }
 
   const hasBody = options.body !== undefined;
@@ -466,10 +488,12 @@ export async function echoApiRequest<T>(path: string, options: ApiOptions = {}):
     return (await response.json()) as T;
   } catch (error) {
     if (error instanceof EchoApiError) {
+      logApiFailure(path, method, error);
       throw error;
     }
 
-    throw new EchoApiError(`Could not reach the Railway API for ${method} ${path}.`, 0, 'NETWORK_ERROR');
+    logApiFailure(path, method, error);
+    throw new EchoApiError(`Cannot reach Echo's Tale API. Please check your connection or try again.`, 0, 'NETWORK_ERROR');
   }
 }
 

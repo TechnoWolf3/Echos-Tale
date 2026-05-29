@@ -2,18 +2,62 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 const sessionTokenKey = 'echo.sessionToken';
+const sessionCookieName = 'echo_session_token';
+const sessionMaxAgeSeconds = 60 * 60 * 24 * 90;
 
 function webStorage() {
   if (typeof globalThis.localStorage === 'undefined') {
     return null;
   }
 
-  return globalThis.localStorage;
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function readCookie(name: string) {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  const prefix = `${name}=`;
+  const cookie = document.cookie
+    .split(';')
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(prefix));
+
+  if (!cookie) {
+    return null;
+  }
+
+  return decodeURIComponent(cookie.slice(prefix.length));
+}
+
+function writeCookie(name: string, value: string) {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${sessionMaxAgeSeconds}; Path=/; SameSite=Lax; Secure`;
+}
+
+function clearCookie(name: string) {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax; Secure`;
 }
 
 export async function getStoredSessionToken() {
   if (Platform.OS === 'web') {
-    return webStorage()?.getItem(sessionTokenKey) ?? null;
+    try {
+      return webStorage()?.getItem(sessionTokenKey) ?? readCookie(sessionCookieName);
+    } catch {
+      return readCookie(sessionCookieName);
+    }
   }
 
   return SecureStore.getItemAsync(sessionTokenKey);
@@ -21,7 +65,14 @@ export async function getStoredSessionToken() {
 
 export async function setStoredSessionToken(token: string) {
   if (Platform.OS === 'web') {
-    webStorage()?.setItem(sessionTokenKey, token);
+    writeCookie(sessionCookieName, token);
+
+    try {
+      webStorage()?.setItem(sessionTokenKey, token);
+    } catch {
+      // Cookie fallback above keeps mobile Safari and in-app browsers from losing the bridge.
+    }
+
     return;
   }
 
@@ -30,7 +81,14 @@ export async function setStoredSessionToken(token: string) {
 
 export async function clearStoredSessionToken() {
   if (Platform.OS === 'web') {
-    webStorage()?.removeItem(sessionTokenKey);
+    clearCookie(sessionCookieName);
+
+    try {
+      webStorage()?.removeItem(sessionTokenKey);
+    } catch {
+      // Nothing else to clear if localStorage is unavailable.
+    }
+
     return;
   }
 
