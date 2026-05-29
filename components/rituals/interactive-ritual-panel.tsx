@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Pressable, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Animated, Easing, Pressable, View } from 'react-native';
 
 import { CasinoButton } from '@/components/casino/casino-button';
 import { GameCard } from '@/components/game/game-card';
@@ -28,15 +28,15 @@ type InteractiveRitualPanelProps = {
 };
 
 const wheelSlices = [
-  'Cash',
-  'Item',
-  'Jam',
-  'Again',
-  'Damage',
-  'Jail',
-  'Jackpot',
-  'Bank',
-  'Void',
+  { color: GameTheme.colors.echo, ids: ['cash_10000', 'cash_25000', 'echo_blessing_cash'], label: 'Cash' },
+  { color: GameTheme.colors.violet, ids: ['random_item', 'mystery_crate'], label: 'Item' },
+  { color: GameTheme.colors.textFaint, ids: ['wheel_jam'], label: 'Jam' },
+  { color: GameTheme.colors.success, ids: ['spin_again'], label: 'Again' },
+  { color: GameTheme.colors.danger, ids: ['wheel_damage'], label: 'Damage' },
+  { color: '#E879F9', ids: ['jail', 'account_frozen'], label: 'Jail' },
+  { color: GameTheme.colors.ember, ids: ['jackpot', 'server_bank_blessing'], label: 'Jackpot' },
+  { color: '#7DD3FC', ids: ['bank_error'], label: 'Bank' },
+  { color: '#111827', ids: ['void_spin', 'echo_prank', 'lucky_multiplier', 'casino_voucher'], label: 'Chaos' },
 ];
 
 function getErrorMessage(error: unknown) {
@@ -190,15 +190,64 @@ function EchoWheelView({
   onAction: (body: EchoApiRitualActionBody) => void;
   session: EchoApiRitualSession | null;
 }) {
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const [spinIndex, setSpinIndex] = useState(0);
   const result = session?.result && typeof session.result === 'object' ? session.result : session?.result_json;
+  const outcomeId = typeof result?.outcomeId === 'string' ? result.outcomeId : typeof result?.id === 'string' ? result.id : null;
   const outcomeLabel =
     typeof result?.label === 'string'
       ? result.label
       : typeof result?.title === 'string'
         ? result.title
-        : typeof result?.outcomeId === 'string'
-          ? result.outcomeId.replace(/_/g, ' ')
+        : outcomeId
+          ? outcomeId.replace(/_/g, ' ')
           : null;
+  const targetIndex = useMemo(() => {
+    if (!outcomeId) {
+      return -1;
+    }
+
+    return wheelSlices.findIndex((slice) => slice.ids.includes(outcomeId));
+  }, [outcomeId]);
+  const highlightedIndex = targetIndex >= 0 ? targetIndex : spinIndex % wheelSlices.length;
+  const rotation = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  useEffect(() => {
+    if (targetIndex < 0) {
+      return;
+    }
+
+    const segmentAngle = 360 / wheelSlices.length;
+    const desiredAngle = 360 - targetIndex * segmentAngle;
+    const turns = 4;
+    const toValue = turns + desiredAngle / 360;
+
+    spinValue.setValue(0);
+    Animated.timing(spinValue, {
+      duration: 1800,
+      easing: Easing.out(Easing.cubic),
+      toValue,
+      useNativeDriver: true,
+    }).start(() => {
+      setSpinIndex(targetIndex);
+    });
+  }, [spinValue, targetIndex]);
+
+  const spin = () => {
+    const nextSpin = spinIndex + 1;
+    setSpinIndex(nextSpin);
+    spinValue.setValue(0);
+    Animated.timing(spinValue, {
+      duration: 900,
+      easing: Easing.in(Easing.cubic),
+      toValue: 2,
+      useNativeDriver: true,
+    }).start();
+    onAction({ action: 'spin' });
+  };
 
   return (
     <View style={{ gap: GameTheme.spacing.md }}>
@@ -208,27 +257,122 @@ function EchoWheelView({
           borderColor: GameTheme.colors.violet,
           borderRadius: GameTheme.radius.md,
           borderWidth: 1,
-          gap: GameTheme.spacing.sm,
+          gap: GameTheme.spacing.md,
           padding: GameTheme.spacing.md,
         }}>
         <GameText tone="faint" variant="label">
-          Wheel Strip
+          Echo Wheel
         </GameText>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.xs }}>
-          {wheelSlices.map((slice, index) => (
+        <View style={{ alignItems: 'center', gap: GameTheme.spacing.sm }}>
+          <View
+            style={{
+              borderBottomColor: GameTheme.colors.ember,
+              borderBottomWidth: 18,
+              borderLeftColor: 'transparent',
+              borderLeftWidth: 12,
+              borderRightColor: 'transparent',
+              borderRightWidth: 12,
+              height: 0,
+              width: 0,
+              zIndex: 2,
+            }}
+          />
+          <Animated.View
+            style={{
+              alignItems: 'center',
+              aspectRatio: 1,
+              backgroundColor: GameTheme.colors.backgroundSoft,
+              borderColor: GameTheme.colors.echo,
+              borderRadius: 999,
+              borderWidth: 2,
+              boxShadow: `0 0 30px rgba(169, 243, 255, 0.18)`,
+              justifyContent: 'center',
+              maxWidth: 310,
+              minWidth: 260,
+              padding: GameTheme.spacing.md,
+              transform: [{ rotate: rotation }],
+              width: '82%',
+            }}>
             <View
-              key={slice}
               style={{
-                backgroundColor: index % 3 === 0 ? GameTheme.colors.ember : index % 3 === 1 ? GameTheme.colors.echo : GameTheme.colors.violet,
-                borderRadius: GameTheme.radius.sm,
-                minWidth: 72,
-                padding: GameTheme.spacing.sm,
+                alignItems: 'center',
+                borderColor: GameTheme.colors.violet,
+                borderRadius: 999,
+                borderWidth: 1,
+                height: '100%',
+                justifyContent: 'center',
+                position: 'relative',
+                width: '100%',
               }}>
-              <GameText style={{ color: GameTheme.colors.background, textAlign: 'center' }} variant="label">
-                {slice}
-              </GameText>
+              {wheelSlices.map((slice, index) => {
+                const angle = (360 / wheelSlices.length) * index;
+                const isHighlighted = index === highlightedIndex;
+
+                return (
+                  <View
+                    key={slice.label}
+                    style={{
+                      alignItems: 'center',
+                      height: '50%',
+                      justifyContent: 'flex-start',
+                      left: '50%',
+                      opacity: isHighlighted ? 1 : 0.66,
+                      position: 'absolute',
+                      top: 0,
+                      transform: [{ translateX: -42 }, { rotate: `${angle}deg` }],
+                      transformOrigin: '42px 100%',
+                      width: 84,
+                    }}>
+                    <View
+                      style={{
+                        alignItems: 'center',
+                        backgroundColor: slice.color,
+                        borderColor: isHighlighted ? GameTheme.colors.text : 'rgba(255,255,255,0.22)',
+                        borderRadius: GameTheme.radius.sm,
+                        borderWidth: isHighlighted ? 2 : 1,
+                        justifyContent: 'center',
+                        minHeight: 42,
+                        paddingHorizontal: GameTheme.spacing.xs,
+                        paddingVertical: 4,
+                        width: 82,
+                      }}>
+                      <GameText
+                        style={{
+                          color: slice.color === '#111827' ? GameTheme.colors.text : GameTheme.colors.background,
+                          fontSize: 10,
+                          textAlign: 'center',
+                        }}
+                        variant="label">
+                        {slice.label}
+                      </GameText>
+                    </View>
+                  </View>
+                );
+              })}
+              <View
+                style={{
+                  alignItems: 'center',
+                  backgroundColor: '#130B24',
+                  borderColor: GameTheme.colors.ember,
+                  borderRadius: 999,
+                  borderWidth: 2,
+                  height: 96,
+                  justifyContent: 'center',
+                  padding: GameTheme.spacing.sm,
+                  width: 96,
+                }}>
+                <GameText tone="ember" variant="label">
+                  Echo
+                </GameText>
+                <GameText style={{ textAlign: 'center' }} tone="echo" variant="caption">
+                  decides
+                </GameText>
+              </View>
             </View>
-          ))}
+          </Animated.View>
+          <GameText tone="muted" variant="caption">
+            The spin is theatre. Railway still owns the outcome.
+          </GameText>
         </View>
       </View>
       {outcomeLabel ? (
@@ -240,7 +384,7 @@ function EchoWheelView({
           {typeof result?.body === 'string' ? <GameText tone="muted">{stripDiscordFormatting(result.body)}</GameText> : null}
         </GameCard>
       ) : null}
-      <CasinoButton disabled={disabled || session?.status === 'resolved'} onPress={() => onAction({ action: 'spin' })} tone="ember">
+      <CasinoButton disabled={disabled || session?.status === 'resolved'} onPress={spin} tone="ember">
         Spin Wheel
       </CasinoButton>
     </View>
