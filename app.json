@@ -4,7 +4,7 @@
     "slug": "echos-tale",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/echo-logo-feathered.png",
     "scheme": "echostale",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -26,7 +26,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/icon.png",
+      "favicon": "./assets/images/echo-logo-feathered.png",
       "name": "Echo’s Tale",
       "shortName": "Echo’s Tale",
       "themeColor": "#060712",
