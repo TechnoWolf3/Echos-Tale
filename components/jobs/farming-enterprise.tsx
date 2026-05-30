@@ -13,6 +13,7 @@ import {
   EchoApiFarmField,
   EchoApiFarmingActionResponse,
   EchoApiFarmingOverview,
+  echoApiBaseUrl,
   fetchFarmingConfig,
   fetchFarmingOverview,
   sellFarmingMarketItem,
@@ -275,6 +276,7 @@ export function FarmingEnterprise() {
         <View style={{ gap: GameTheme.spacing.sm }}>
           <StatRow label="Season" value={titleCase(overview?.season?.current ?? overview?.season?.name ?? overview?.weather?.season)} />
           <StatRow label="Weather" value={overview?.weather?.headline ?? overview?.weather?.baseWeather ?? 'Loading'} />
+          <StatRow label="API Route" value={echoApiBaseUrl || 'Not configured'} />
           <StatRow label="Fields" value={`${fields.length}/${maxFields}`} />
           <StatRow label="Active Tasks" value={String(fieldSummary.activeTasks)} />
           <StatRow label="Ready Crops" value={String(fieldSummary.readyCrops)} />
