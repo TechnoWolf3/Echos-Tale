@@ -458,6 +458,104 @@ export type EchoApiLoanRepayResponse = {
   status: 'cleared' | 'paid';
 };
 
+export type EchoApiFarmSeason = {
+  current?: string;
+  name?: string;
+  next?: string;
+  nextSeason?: string;
+  nextSeasonAt?: number | string | null;
+};
+
+export type EchoApiFarmWeather = {
+  activeNow?: boolean;
+  baseWeather?: string;
+  event?: Record<string, unknown> | string | null;
+  eventName?: string | null;
+  forecast?: string;
+  headline?: string;
+  impact?: string;
+  season?: string;
+};
+
+export type EchoApiFarmTask = {
+  cropId?: string;
+  endsAt?: number | string | null;
+  key?: string;
+  startedAt?: number | string | null;
+};
+
+export type EchoApiFarmField = {
+  adultCount?: number;
+  animalCount?: number;
+  babies?: unknown[];
+  capacity?: number;
+  cropId?: string | null;
+  cropWeatherEffect?: Record<string, unknown> | string | null;
+  cultivated?: boolean;
+  fieldCondition?: Record<string, unknown> | string | null;
+  fertiliserApplications?: Record<string, unknown>;
+  fertiliserStages?: Record<string, unknown>;
+  kind?: 'barn' | string;
+  lastCollectedAt?: number | string | null;
+  lastCropFamily?: string | null;
+  level?: number;
+  livestockType?: string;
+  plantedAt?: number | string | null;
+  readyAt?: number | string | null;
+  sameFamilyStreak?: number;
+  soilHealth?: number;
+  state?: 'empty' | 'growing' | 'ready' | 'spoiled' | string;
+  task?: EchoApiFarmTask | null;
+  weatherMeta?: Record<string, unknown>;
+};
+
+export type EchoApiFarmMachineLease = {
+  expiresAt?: number | string | null;
+  rentedAt?: number | string | null;
+};
+
+export type EchoApiFarmMachineBucket = {
+  leases?: EchoApiFarmMachineLease[];
+};
+
+export type EchoApiFarmMachineState = {
+  activeTasks?: EchoApiFarmTask[];
+  owned?: Record<string, number>;
+  rented?: Record<string, EchoApiFarmMachineBucket | number>;
+};
+
+export type EchoApiFarmInventoryItem = {
+  itemId: string;
+  name?: string;
+  qty: number;
+  totalValue?: number;
+  unitPrice?: number;
+};
+
+export type EchoApiFarmData = {
+  fertilisers?: Record<string, number>;
+  fields?: EchoApiFarmField[];
+  husbandry?: Record<string, number>;
+};
+
+export type EchoApiFarmingOverview = {
+  config?: Record<string, unknown>;
+  farm: EchoApiFarmData;
+  machines?: EchoApiFarmMachineState;
+  message?: string;
+  nextFieldCost?: number;
+  profile?: EchoApiProfile;
+  season?: EchoApiFarmSeason;
+  sellableInventory?: EchoApiFarmInventoryItem[];
+  weather?: EchoApiFarmWeather;
+};
+
+export type EchoApiFarmingActionResponse = EchoApiFarmingOverview & {
+  message: string;
+};
+
+export type EchoApiFarmingConfig = Record<string, unknown>;
+
 export type DiscordLinkCodeResponse = {
   expiresAt: string;
   linkCode: string;
@@ -489,7 +587,12 @@ export class EchoApiError extends Error {
 }
 
 const rawEchoApiBaseUrl = process.env.EXPO_PUBLIC_ECHO_API_URL ?? process.env.EXPO_PUBLIC_API_URL ?? '';
-const useVercelApiProxy = Platform.OS === 'web' && process.env.NODE_ENV === 'production';
+const webHostname = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.hostname : '';
+const isHostedWeb =
+  Platform.OS === 'web' &&
+  !!webHostname &&
+  !/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$/i.test(webHostname);
+const useVercelApiProxy = Platform.OS === 'web' && (process.env.NODE_ENV === 'production' || isHostedWeb);
 const productionUnsafeApiUrl =
   !useVercelApiProxy &&
   process.env.NODE_ENV === 'production' &&
@@ -1009,6 +1112,134 @@ export function setRecurringDeposit(sessionToken: string, amount: number) {
 export function disableRecurringDeposit(sessionToken: string) {
   return echoApiRequest<EchoApiRecurringDeposit>('/v1/bank/recurring-deposit', {
     method: 'DELETE',
+    token: sessionToken,
+  });
+}
+
+export function fetchFarmingOverview(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiFarmingOverview>('/v1/enterprises/farming', {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function fetchFarmingConfig(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiFarmingConfig>('/v1/enterprises/farming/config', {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function buyFarmingField(sessionToken: string) {
+  return echoApiRequest<EchoApiFarmingActionResponse>('/v1/enterprises/farming/fields', {
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function startFarmingFieldAction(
+  sessionToken: string,
+  fieldIndex: number,
+  action: 'cultivate' | 'harvest' | 'rest' | 'upgrade'
+) {
+  return echoApiRequest<EchoApiFarmingActionResponse>(
+    `/v1/enterprises/farming/fields/${encodeURIComponent(String(fieldIndex))}/${action}`,
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function plantFarmingCrop(sessionToken: string, fieldIndex: number, cropId: string) {
+  return echoApiRequest<EchoApiFarmingActionResponse>(
+    `/v1/enterprises/farming/fields/${encodeURIComponent(String(fieldIndex))}/plant`,
+    {
+      body: { cropId },
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function fertiliseFarmingField(sessionToken: string, fieldIndex: number, fertiliserId: string) {
+  return echoApiRequest<EchoApiFarmingActionResponse>(
+    `/v1/enterprises/farming/fields/${encodeURIComponent(String(fieldIndex))}/fertilise`,
+    {
+      body: { fertiliserId },
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function convertFarmingBarn(sessionToken: string, fieldIndex: number, livestockType: string) {
+  return echoApiRequest<EchoApiFarmingActionResponse>(
+    `/v1/enterprises/farming/fields/${encodeURIComponent(String(fieldIndex))}/convert-barn`,
+    {
+      body: { livestockType },
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function startFarmingBarnAction(
+  sessionToken: string,
+  fieldIndex: number,
+  action: 'collect' | 'demolish' | 'restock' | 'slaughter' | 'slaughter-elderly' | 'upgrade'
+) {
+  return echoApiRequest<EchoApiFarmingActionResponse>(
+    `/v1/enterprises/farming/barns/${encodeURIComponent(String(fieldIndex))}/${action}`,
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function breedFarmingBarn(sessionToken: string, fieldIndex: number, itemId: string) {
+  return echoApiRequest<EchoApiFarmingActionResponse>(
+    `/v1/enterprises/farming/barns/${encodeURIComponent(String(fieldIndex))}/breed`,
+    {
+      body: { itemId },
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function buyFarmingStoreItem(
+  sessionToken: string,
+  bucket: 'fertiliser' | 'husbandry',
+  itemId: string,
+  qty: number
+) {
+  const body = bucket === 'fertiliser' ? { fertiliserId: itemId, qty } : { itemId, qty };
+
+  return echoApiRequest<EchoApiFarmingActionResponse>(`/v1/enterprises/farming/store/${bucket}`, {
+    body,
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function startFarmingMachineAction(
+  sessionToken: string,
+  action: 'buy' | 'rent' | 'sell',
+  machineId: string
+) {
+  return echoApiRequest<EchoApiFarmingActionResponse>(`/v1/enterprises/farming/machines/${action}`, {
+    body: { machineId },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function sellFarmingMarketItem(sessionToken: string, itemId: string) {
+  return echoApiRequest<EchoApiFarmingActionResponse>('/v1/enterprises/farming/market/sell', {
+    body: { itemId },
+    method: 'POST',
     token: sessionToken,
   });
 }

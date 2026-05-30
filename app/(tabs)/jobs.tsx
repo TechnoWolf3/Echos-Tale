@@ -9,6 +9,7 @@ import { GameText } from '@/components/game/game-text';
 import { HubCard } from '@/components/game/hub-card';
 import { ProgressBar } from '@/components/game/progress-bar';
 import { EmailSorterJob } from '@/components/jobs/email-sorter-job';
+import { FarmingEnterprise } from '@/components/jobs/farming-enterprise';
 import { ShiftJob } from '@/components/jobs/shift-job';
 import { SkillCheckJob } from '@/components/jobs/skill-check-job';
 import { TransportContractJob } from '@/components/jobs/transport-contract-job';
@@ -32,7 +33,6 @@ const nightWalkerJobs = [
 ];
 
 const enterpriseJobs = [
-  { detail: 'Plant crops, buy machines with bank money, harvest goods into storage.', title: 'Farming' },
   { detail: 'Run recipes through production lines, then sell goods or fill contracts.', title: 'Manufacturing' },
 ];
 
@@ -257,6 +257,7 @@ export default function JobsScreen() {
 
       {activeHub === 'enterprises' ? (
         <View style={{ gap: GameTheme.spacing.md }}>
+          <FarmingEnterprise />
           {enterpriseJobs.map((job) => (
             <HubCard key={job.title} detail={job.detail} meta="Bank funded | inventory | long-term state" status="Later" title={job.title} tone="echo" />
           ))}
