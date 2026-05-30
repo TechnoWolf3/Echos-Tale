@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "echos-tale",
+    "name": "Echo’s Tale",
     "slug": "echos-tale",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -26,7 +26,11 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/icon.png",
+      "name": "Echo’s Tale",
+      "shortName": "Echo’s Tale",
+      "themeColor": "#060712",
+      "backgroundColor": "#060712"
     },
     "plugins": [
   "expo-router",
