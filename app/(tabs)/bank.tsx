@@ -211,6 +211,7 @@ export default function BankScreen() {
   const [loading, setLoading] = useState(false);
 
   const accountNumber = getBankAccountNumber(dashboard) ?? linkedAccountNumber;
+  const displayedTotalWealth = game.illusion ? game.wallet + game.bank : (dashboard?.totalWealth ?? game.wallet + game.bank);
   const loan = loans?.loan ?? dashboard?.loan ?? null;
   const recurringDeposit = dashboard?.recurringDeposit ?? null;
   const jailed = game.jailUntil !== null && game.jailUntil > game.now;
@@ -371,7 +372,7 @@ export default function BankScreen() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
           <StatPill label="Wallet" value={formatMoney(game.wallet)} />
           <StatPill label="Bank" value={formatMoney(game.bank)} />
-          <StatPill label="Total Wealth" value={formatMoney((dashboard?.totalWealth ?? game.wallet + game.bank))} />
+          <StatPill label="Total Wealth" value={formatMoney(displayedTotalWealth)} />
         </View>
         <View
           style={{

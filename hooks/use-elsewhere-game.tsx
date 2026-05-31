@@ -1,14 +1,11 @@
 import { AppState } from 'react-native';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { EchoApiError, EchoApiProfile, fetchEchoProfile, isEchoApiConfigured } from '@/services/echo-api';
+import { EchoApiError, EchoApiProfile, EchoApiProfileIllusion, fetchEchoProfile, isEchoApiConfigured } from '@/services/echo-api';
 import {
   clearStoredSessionToken,
-  clearStoredDevPassword,
   getStoredLinkedProfile,
-  getStoredDevPassword,
   getStoredSessionToken,
-  setStoredDevPassword,
   setStoredLinkedProfile,
   setStoredSessionToken,
 } from '@/services/session-storage';
@@ -40,11 +37,11 @@ type ElsewhereGame = {
   cooldowns: Cooldowns;
   events: GameEvent[];
   heat: number;
+  illusion: EchoApiProfileIllusion | null;
   isBridgeReady: boolean;
   jailUntil: number | null;
   jobLevel: number;
   jobXp: number;
-  devPassword: string | null;
   linkedProfile: EchoApiProfile | null;
   linkStatus: 'local' | 'loading' | 'linked' | 'error';
   lastSyncedAt: number | null;
@@ -55,7 +52,6 @@ type ElsewhereGame = {
   applyRemoteProfile: (profile: EchoApiProfile, options?: { announce?: boolean }) => void;
   bribeOfficer: () => void;
   canAct: (id: CooldownId) => boolean;
-  clearDevPassword: () => Promise<void>;
   clearJail: () => void;
   clearLinkedSession: () => Promise<void>;
   getCooldownLabel: (id: CooldownId) => string;
@@ -67,7 +63,6 @@ type ElsewhereGame = {
   runDailyRitual: () => void;
   runStoreClerk: () => void;
   runStoreRobbery: () => void;
-  saveDevPassword: (password: string) => Promise<void>;
   setLinkedSession: (token: string, profile: EchoApiProfile) => Promise<void>;
   tick: () => void;
 };
@@ -96,6 +91,38 @@ function getAccountNumber(profile: EchoApiProfile) {
   return profile.accountNumber ?? profile.account_number ?? null;
 }
 
+function getIllusionExpiresAt(illusion?: EchoApiProfileIllusion | null) {
+  const rawExpiry = illusion?.expiresAt ?? illusion?.endsAt ?? null;
+  const expiry = rawExpiry ? new Date(rawExpiry).getTime() : null;
+
+  return expiry && Number.isFinite(expiry) ? expiry : null;
+}
+
+function isIllusionActive(illusion?: EchoApiProfileIllusion | null) {
+  if (!illusion?.active) {
+    return false;
+  }
+
+  const expiresAt = getIllusionExpiresAt(illusion);
+  return !expiresAt || expiresAt > Date.now();
+}
+
+function getDisplayProfile(profile: EchoApiProfile) {
+  const illusion = isIllusionActive(profile.illusion) ? profile.illusion : null;
+  const display = illusion?.display;
+
+  return {
+    accountNumber: display?.accountNumber ?? display?.account_number ?? (illusion ? null : getAccountNumber(profile)),
+    bankBalance: display?.bankBalance ?? (illusion ? 0 : profile.bankBalance),
+    heat: display?.heat ?? (illusion ? 0 : profile.heat),
+    jailedUntil: display?.jailedUntil ?? (illusion ? null : profile.jailedUntil),
+    jobLevel: display?.jobLevel ?? (illusion ? 0 : profile.jobLevel),
+    jobXp: display?.jobXp ?? (illusion ? 0 : profile.jobXp),
+    serverBankBalance: display?.serverBankBalance ?? (illusion ? 0 : profile.serverBankBalance),
+    walletBalance: display?.walletBalance ?? (illusion ? 0 : profile.walletBalance),
+  };
+}
+
 export function formatMoney(value: number) {
   return `$${Math.round(value).toLocaleString()}`;
 }
@@ -108,7 +135,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
   const [heat, setHeat] = useState(12);
   const [jobLevel, setJobLevel] = useState(1);
   const [jobXp, setJobXp] = useState(0);
-  const [devPassword, setDevPassword] = useState<string | null>(null);
+  const [illusion, setIllusion] = useState<EchoApiProfileIllusion | null>(null);
   const [cooldowns, setCooldowns] = useState<Cooldowns>({});
   const [jailUntil, setJailUntil] = useState<number | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -137,14 +164,18 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
 
   const applyRemoteProfile = useCallback(
     (profile: EchoApiProfile, options: { announce?: boolean } = {}) => {
-      setWallet(profile.walletBalance);
-      setBank(profile.bankBalance);
-      setAccountNumber(getAccountNumber(profile));
-      setServerBank(profile.serverBankBalance);
-      setHeat(profile.heat);
-      setJobLevel(profile.jobLevel);
-      setJobXp(profile.jobXp);
-      setJailUntil(profile.jailedUntil ? new Date(profile.jailedUntil).getTime() : null);
+      const displayProfile = getDisplayProfile(profile);
+      const nextIllusion = isIllusionActive(profile.illusion) ? profile.illusion ?? null : null;
+
+      setWallet(displayProfile.walletBalance);
+      setBank(displayProfile.bankBalance);
+      setAccountNumber(displayProfile.accountNumber);
+      setServerBank(displayProfile.serverBankBalance);
+      setHeat(displayProfile.heat);
+      setJobLevel(displayProfile.jobLevel);
+      setJobXp(displayProfile.jobXp);
+      setJailUntil(displayProfile.jailedUntil ? new Date(displayProfile.jailedUntil).getTime() : null);
+      setIllusion(nextIllusion);
       setLinkedProfile(profile);
       setLinkStatus('linked');
       setLastSyncedAt(Date.now());
@@ -173,24 +204,6 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
     setLinkStatus('local');
     pushEvent('Discord bridge disconnected. Local testing ledger is back in charge.', 'neutral');
   }, [pushEvent]);
-
-  const saveDevPassword = useCallback(async (password: string) => {
-    const nextPassword = password.trim();
-
-    if (!nextPassword) {
-      await clearStoredDevPassword();
-      setDevPassword(null);
-      return;
-    }
-
-    await setStoredDevPassword(nextPassword);
-    setDevPassword(nextPassword);
-  }, []);
-
-  const clearDevPassword = useCallback(async () => {
-    await clearStoredDevPassword();
-    setDevPassword(null);
-  }, []);
 
   const refreshRemoteProfile = useCallback(async () => {
     if (!sessionToken || refreshInFlight.current) {
@@ -233,6 +246,40 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
     },
     [lastSyncedAt, refreshRemoteProfile, sessionToken]
   );
+
+  useEffect(() => {
+    if (!illusion) {
+      return;
+    }
+
+    const expiresAt = getIllusionExpiresAt(illusion);
+
+    if (!expiresAt) {
+      return;
+    }
+
+    const clearIllusion = () => {
+      setIllusion(null);
+
+      if (linkedProfile) {
+        setWallet(linkedProfile.walletBalance);
+        setBank(linkedProfile.bankBalance);
+        setAccountNumber(getAccountNumber(linkedProfile));
+        setServerBank(linkedProfile.serverBankBalance);
+        setHeat(linkedProfile.heat);
+        setJobLevel(linkedProfile.jobLevel);
+        setJobXp(linkedProfile.jobXp);
+        setJailUntil(linkedProfile.jailedUntil ? new Date(linkedProfile.jailedUntil).getTime() : null);
+      }
+
+      void refreshRemoteProfile();
+    };
+
+    const delay = Math.max(0, expiresAt - Date.now() + 500);
+    const timeout = setTimeout(clearIllusion, delay);
+
+    return () => clearTimeout(timeout);
+  }, [illusion, linkedProfile, refreshRemoteProfile]);
 
   useEffect(() => {
     let mounted = true;
@@ -307,20 +354,6 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       mounted = false;
     };
   }, [applyRemoteProfile, pushEvent]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    getStoredDevPassword().then((storedPassword) => {
-      if (mounted) {
-        setDevPassword(storedPassword);
-      }
-    });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (!sessionToken) {
@@ -577,14 +610,13 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       applyRemoteProfile,
       bribeOfficer,
       canAct,
-      clearDevPassword,
       clearJail,
       clearLinkedSession,
       cooldowns,
-      devPassword,
       events,
       getCooldownLabel,
       heat,
+      illusion,
       isBridgeReady,
       jailUntil,
       jobLevel,
@@ -601,7 +633,6 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       runDailyRitual,
       runStoreClerk,
       runStoreRobbery,
-      saveDevPassword,
       serverBank,
       sessionToken,
       setLinkedSession,
@@ -614,14 +645,13 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       applyRemoteProfile,
       bribeOfficer,
       canAct,
-      clearDevPassword,
       clearJail,
       clearLinkedSession,
       cooldowns,
-      devPassword,
       events,
       getCooldownLabel,
       heat,
+      illusion,
       isBridgeReady,
       jailUntil,
       jobLevel,
@@ -638,7 +668,6 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       runDailyRitual,
       runStoreClerk,
       runStoreRobbery,
-      saveDevPassword,
       serverBank,
       sessionToken,
       setLinkedSession,

@@ -1,5 +1,25 @@
 import { Platform } from 'react-native';
 
+export type EchoApiProfileIllusion = {
+  active: boolean;
+  display?: {
+    accountNumber?: string | null;
+    account_number?: string | null;
+    bankBalance?: number;
+    heat?: number;
+    jailedUntil?: string | null;
+    jobLevel?: number;
+    jobXp?: number;
+    serverBankBalance?: number;
+    walletBalance?: number;
+  };
+  endsAt?: string | null;
+  expiresAt?: string | null;
+  message?: string | null;
+  startedAt?: string | null;
+  type: 'angry_echo_fake_wipe' | string;
+};
+
 export type EchoApiProfile = {
   account_number?: string | null;
   accountNumber?: string | null;
@@ -7,6 +27,7 @@ export type EchoApiProfile = {
   discordUserId: string | null;
   displayName: string;
   heat: number;
+  illusion?: EchoApiProfileIllusion | null;
   jailedUntil: string | null;
   jobLevel: number;
   jobXp: number;
@@ -580,6 +601,7 @@ export type DiscordLinkStatusResponse = {
 
 type ApiOptions = {
   body?: unknown;
+  headers?: Record<string, string>;
   method?: 'DELETE' | 'GET' | 'POST';
   signal?: AbortSignal;
   token?: string | null;
@@ -655,6 +677,7 @@ export async function echoApiRequest<T>(path: string, options: ApiOptions = {}):
         Accept: 'application/json',
         ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
         ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+        ...options.headers,
       },
       method,
       signal: options.signal,
@@ -735,6 +758,95 @@ export function checkDiscordLinkCode(linkCode: string, signal?: AbortSignal) {
 export function fetchEchoProfile(sessionToken: string, signal?: AbortSignal) {
   return echoApiRequest<EchoApiProfile>('/v1/me', {
     signal,
+    token: sessionToken,
+  });
+}
+
+export type EchoApiAdminPanelField = {
+  defaultValue?: string | number | boolean | null;
+  helpText?: string;
+  id: string;
+  label: string;
+  options?: { label: string; value: string }[];
+  placeholder?: string;
+  required?: boolean;
+  type?: 'boolean' | 'number' | 'select' | 'text' | 'textarea';
+};
+
+export type EchoApiAdminPanelAction = {
+  dangerous?: boolean;
+  description?: string;
+  fields?: EchoApiAdminPanelField[];
+  id: string;
+  label: string;
+  requiresConfirmation?: boolean;
+};
+
+export type EchoApiAdminPanelCategory = {
+  actions: EchoApiAdminPanelAction[];
+  description?: string;
+  id: string;
+  label: string;
+};
+
+export type EchoApiAdminPanel = {
+  categories: EchoApiAdminPanelCategory[];
+  message?: string;
+};
+
+export type EchoApiAdminPanelActionResponse = {
+  data?: unknown;
+  message?: string;
+  profile?: EchoApiProfile;
+  result?: unknown;
+  status?: string;
+};
+
+export type EchoApiAdminFailedUnlockResponse = {
+  failedAttempts?: number;
+  illusion?: EchoApiProfileIllusion | null;
+  message?: string;
+  profile?: EchoApiProfile;
+  status?: string;
+};
+
+function adminPanelHeaders(devPassword: string) {
+  return {
+    'X-Echo-Dev-Password': devPassword,
+  };
+}
+
+export function fetchEchoAdminPanel(sessionToken: string, devPassword: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiAdminPanel>('/v1/adminpanel', {
+    headers: adminPanelHeaders(devPassword),
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function runEchoAdminPanelAction(
+  sessionToken: string,
+  devPassword: string,
+  actionId: string,
+  fields: Record<string, string | number | boolean>
+) {
+  return echoApiRequest<EchoApiAdminPanelActionResponse>(`/v1/adminpanel/actions/${encodeURIComponent(actionId)}`, {
+    body: {
+      fields,
+    },
+    headers: adminPanelHeaders(devPassword),
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function reportEchoAdminFailedUnlock(sessionToken: string, failedAttempts: number) {
+  return echoApiRequest<EchoApiAdminFailedUnlockResponse>('/v1/adminpanel/failed-unlock', {
+    body: {
+      failedAttempts,
+      source: 'app',
+    },
+    method: 'POST',
     token: sessionToken,
   });
 }

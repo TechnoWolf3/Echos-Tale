@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import 'react-native-reanimated';
 
+import { AngryEchoIllusion } from '@/components/game/angry-echo-illusion';
 import { EchoLoadScreen } from '@/components/game/echo-load-screen';
 import { GameTheme } from '@/constants/theme';
 import { ElsewhereGameProvider } from '@/hooks/use-elsewhere-game';
@@ -41,6 +42,7 @@ export default function RootLayout() {
             <Stack.Screen name="settings" options={{ title: 'Settings' }} />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
+          <AngryEchoIllusion />
           <EchoLoadScreen />
           <StatusBar style="light" />
         </ElsewhereGameProvider>
