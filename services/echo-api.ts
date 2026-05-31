@@ -469,19 +469,24 @@ export type EchoApiFarmSeason = {
 export type EchoApiFarmWeather = {
   activeNow?: boolean;
   baseWeather?: string;
+  dayKey?: string;
   event?: Record<string, unknown> | string | null;
   eventName?: string | null;
   forecast?: string;
   headline?: string;
   impact?: string;
+  rolledAt?: number | string | null;
   season?: string;
 };
 
 export type EchoApiFarmTask = {
   cropId?: string;
   endsAt?: number | string | null;
+  fieldIndex?: number;
+  machineIds?: string[];
   key?: string;
   startedAt?: number | string | null;
+  taskKey?: string;
 };
 
 export type EchoApiFarmField = {
@@ -552,6 +557,12 @@ export type EchoApiFarmingOverview = {
 
 export type EchoApiFarmingActionResponse = EchoApiFarmingOverview & {
   message: string;
+  startedTask?: {
+    fieldIndex?: number;
+    fieldNumber?: number;
+    machineIds?: string[];
+    task?: EchoApiFarmTask;
+  };
 };
 
 export type EchoApiFarmingConfig = Record<string, unknown>;
