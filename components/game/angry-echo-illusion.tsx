@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 
 import { GameText } from '@/components/game/game-text';
@@ -6,23 +6,41 @@ import { GameTheme } from '@/constants/theme';
 import { useElsewhereGame } from '@/hooks/use-elsewhere-game';
 
 const angryEcho = require('../../assets/images/angry-echo.png');
+const HOLD_MS = 6800;
+const EXIT_MS = 760;
+
+function getIllusionKey(illusion: ReturnType<typeof useElsewhereGame>['illusion']) {
+  if (!illusion) {
+    return null;
+  }
+
+  return `${illusion.type}:${illusion.startedAt ?? illusion.expiresAt ?? 'active'}`;
+}
 
 export function AngryEchoIllusion() {
   const { illusion } = useElsewhereGame();
+  const [visibleIllusionKey, setVisibleIllusionKey] = useState<string | null>(null);
+  const lastShownIllusionKey = useRef<string | null>(null);
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.82)).current;
   const translateY = useRef(new Animated.Value(68)).current;
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (!illusion) {
+    const illusionKey = getIllusionKey(illusion);
+
+    if (!illusionKey || lastShownIllusionKey.current === illusionKey) {
       opacity.setValue(0);
       scale.setValue(0.82);
       translateY.setValue(68);
+      setVisibleIllusionKey(null);
       return;
     }
 
-    Animated.parallel([
+    lastShownIllusionKey.current = illusionKey;
+    setVisibleIllusionKey(illusionKey);
+
+    const intro = Animated.parallel([
       Animated.timing(opacity, {
         duration: 760,
         easing: Easing.out(Easing.cubic),
@@ -41,7 +59,36 @@ export function AngryEchoIllusion() {
         toValue: 0,
         useNativeDriver: true,
       }),
-    ]).start();
+    ]);
+    const exit = Animated.parallel([
+      Animated.timing(opacity, {
+        duration: EXIT_MS,
+        easing: Easing.in(Easing.quad),
+        toValue: 0,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        duration: EXIT_MS,
+        easing: Easing.in(Easing.cubic),
+        toValue: 0.72,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        duration: EXIT_MS,
+        easing: Easing.in(Easing.cubic),
+        toValue: 180,
+        useNativeDriver: true,
+      }),
+    ]);
+    const sequence = Animated.sequence([intro, Animated.delay(HOLD_MS), exit]);
+
+    sequence.start(({ finished }) => {
+      if (finished) {
+        setVisibleIllusionKey(null);
+      }
+    });
+
+    return () => sequence.stop();
   }, [illusion, opacity, scale, translateY]);
 
   useEffect(() => {
@@ -67,7 +114,7 @@ export function AngryEchoIllusion() {
     return () => loop.stop();
   }, [pulse]);
 
-  if (!illusion) {
+  if (!illusion || !visibleIllusionKey) {
     return null;
   }
 

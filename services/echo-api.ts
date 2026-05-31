@@ -816,12 +816,27 @@ function adminPanelHeaders(devPassword: string) {
   };
 }
 
-export function fetchEchoAdminPanel(sessionToken: string, devPassword: string, signal?: AbortSignal) {
-  return echoApiRequest<EchoApiAdminPanel>('/v1/adminpanel', {
-    headers: adminPanelHeaders(devPassword),
-    signal,
-    token: sessionToken,
-  });
+export async function fetchEchoAdminPanel(sessionToken: string, devPassword: string, signal?: AbortSignal) {
+  try {
+    return await echoApiRequest<EchoApiAdminPanel>('/v1/adminpanel', {
+      headers: adminPanelHeaders(devPassword),
+      signal,
+      token: sessionToken,
+    });
+  } catch (error) {
+    if (!(error instanceof EchoApiError) || error.code !== 'NETWORK_ERROR') {
+      throw error;
+    }
+
+    return echoApiRequest<EchoApiAdminPanel>('/v1/adminpanel', {
+      body: {
+        devPassword,
+      },
+      method: 'POST',
+      signal,
+      token: sessionToken,
+    });
+  }
 }
 
 export function runEchoAdminPanelAction(
