@@ -161,6 +161,7 @@ function EmptyState({ message }: { message: string }) {
 
 export function FarmingEnterprise() {
   const game = useElsewhereGame();
+  const { applyRemoteProfile, sessionToken } = game;
   const [overview, setOverview] = useState<EchoApiFarmingOverview | null>(null);
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
   const [tab, setTab] = useState<FarmingTab>('fields');
@@ -176,7 +177,7 @@ export function FarmingEnterprise() {
 
   const loadFarm = useCallback(
     async (signal?: AbortSignal) => {
-      if (!game.sessionToken) {
+      if (!sessionToken) {
         return;
       }
 
@@ -184,16 +185,12 @@ export function FarmingEnterprise() {
       setError(null);
 
       try {
-        const [nextOverview, nextConfig] = await Promise.all([
-          fetchFarmingOverview(game.sessionToken, signal),
-          fetchFarmingConfig(game.sessionToken, signal).catch(() => null),
-        ]);
+        const nextOverview = await fetchFarmingOverview(sessionToken, signal);
 
         setOverview(nextOverview);
-        setConfig(nextConfig);
 
         if (nextOverview.profile) {
-          game.applyRemoteProfile(nextOverview.profile, { announce: false });
+          applyRemoteProfile(nextOverview.profile, { announce: false });
         }
       } catch (loadError) {
         if (loadError instanceof DOMException && loadError.name === 'AbortError') {
@@ -205,7 +202,7 @@ export function FarmingEnterprise() {
         setLoading(false);
       }
     },
-    [game]
+    [applyRemoteProfile, sessionToken]
   );
 
   useEffect(() => {
@@ -216,16 +213,30 @@ export function FarmingEnterprise() {
     return () => controller.abort();
   }, [loadFarm]);
 
+  useEffect(() => {
+    if (!sessionToken || config) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    fetchFarmingConfig(sessionToken, controller.signal)
+      .then(setConfig)
+      .catch(() => null);
+
+    return () => controller.abort();
+  }, [config, sessionToken]);
+
   const applyActionResponse = useCallback(
     (response: EchoApiFarmingActionResponse) => {
       setOverview(response);
       setNotice(response.message);
 
       if (response.profile) {
-        game.applyRemoteProfile(response.profile, { announce: false });
+        applyRemoteProfile(response.profile, { announce: false });
       }
     },
-    [game]
+    [applyRemoteProfile]
   );
 
   const runAction = useCallback(
@@ -252,13 +263,13 @@ export function FarmingEnterprise() {
     return { activeTasks, readyCrops };
   }, [cropFields, fields]);
 
-  if (!game.sessionToken) {
+  if (!sessionToken) {
     return (
       <GameCard>
         <GameText variant="title">Farming</GameText>
-        <GameText tone="muted">
-          Link Discord first. Farms, machines, inventory, crops, barns, timers, and money all live on Railway.
-        </GameText>
+            <GameText tone="muted">
+              Link Discord first. Farms, machines, inventory, crops, barns, timers, and money all live on Railway.
+            </GameText>
       </GameCard>
     );
   }
@@ -289,7 +300,7 @@ export function FarmingEnterprise() {
           </CasinoButton>
           <CasinoButton
             disabled={loading || busyKey !== null || fields.length >= maxFields}
-            onPress={() => void runAction('buy-field', () => buyFarmingField(game.sessionToken!))}
+            onPress={() => void runAction('buy-field', () => buyFarmingField(sessionToken!))}
             tone="ember">
             Buy Field
           </CasinoButton>
@@ -337,23 +348,23 @@ export function FarmingEnterprise() {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
                   <CasinoButton
                     disabled={busyKey !== null || !!field.task}
-                    onPress={() => void runAction(`cultivate-${index}`, () => startFarmingFieldAction(game.sessionToken!, index, 'cultivate'))}>
+                    onPress={() => void runAction(`cultivate-${index}`, () => startFarmingFieldAction(sessionToken!, index, 'cultivate'))}>
                     Cultivate
                   </CasinoButton>
                   <CasinoButton
                     disabled={busyKey !== null || !!field.task}
-                    onPress={() => void runAction(`harvest-${index}`, () => startFarmingFieldAction(game.sessionToken!, index, 'harvest'))}
+                    onPress={() => void runAction(`harvest-${index}`, () => startFarmingFieldAction(sessionToken!, index, 'harvest'))}
                     tone="echo">
                     Harvest
                   </CasinoButton>
                   <CasinoButton
                     disabled={busyKey !== null || !!field.task}
-                    onPress={() => void runAction(`rest-${index}`, () => startFarmingFieldAction(game.sessionToken!, index, 'rest'))}>
+                    onPress={() => void runAction(`rest-${index}`, () => startFarmingFieldAction(sessionToken!, index, 'rest'))}>
                     Rest
                   </CasinoButton>
                   <CasinoButton
                     disabled={busyKey !== null || !!field.task}
-                    onPress={() => void runAction(`upgrade-${index}`, () => startFarmingFieldAction(game.sessionToken!, index, 'upgrade'))}
+                    onPress={() => void runAction(`upgrade-${index}`, () => startFarmingFieldAction(sessionToken!, index, 'upgrade'))}
                     tone="ember">
                     Upgrade
                   </CasinoButton>
@@ -384,24 +395,24 @@ export function FarmingEnterprise() {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
                   <CasinoButton
                     disabled={busyKey !== null || !!field.task}
-                    onPress={() => void runAction(`collect-${index}`, () => startFarmingBarnAction(game.sessionToken!, index, 'collect'))}
+                    onPress={() => void runAction(`collect-${index}`, () => startFarmingBarnAction(sessionToken!, index, 'collect'))}
                     tone="echo">
                     Collect
                   </CasinoButton>
                   <CasinoButton
                     disabled={busyKey !== null || !!field.task}
-                    onPress={() => void runAction(`restock-${index}`, () => startFarmingBarnAction(game.sessionToken!, index, 'restock'))}>
+                    onPress={() => void runAction(`restock-${index}`, () => startFarmingBarnAction(sessionToken!, index, 'restock'))}>
                     Restock
                   </CasinoButton>
                   <CasinoButton
                     disabled={busyKey !== null || !!field.task}
-                    onPress={() => void runAction(`elderly-${index}`, () => startFarmingBarnAction(game.sessionToken!, index, 'slaughter-elderly'))}
+                    onPress={() => void runAction(`elderly-${index}`, () => startFarmingBarnAction(sessionToken!, index, 'slaughter-elderly'))}
                     tone="ember">
                     Cull Elderly
                   </CasinoButton>
                   <CasinoButton
                     disabled={busyKey !== null || !!field.task}
-                    onPress={() => void runAction(`barn-upgrade-${index}`, () => startFarmingBarnAction(game.sessionToken!, index, 'upgrade'))}>
+                    onPress={() => void runAction(`barn-upgrade-${index}`, () => startFarmingBarnAction(sessionToken!, index, 'upgrade'))}>
                     Upgrade
                   </CasinoButton>
                 </View>
@@ -439,7 +450,7 @@ export function FarmingEnterprise() {
               <View style={{ alignItems: 'flex-start' }}>
                 <CasinoButton
                   disabled={busyKey !== null}
-                  onPress={() => void runAction(`sell-${item.itemId}`, () => sellFarmingMarketItem(game.sessionToken!, item.itemId))}
+                  onPress={() => void runAction(`sell-${item.itemId}`, () => sellFarmingMarketItem(sessionToken!, item.itemId))}
                   tone="echo">
                   Sell All
                 </CasinoButton>
