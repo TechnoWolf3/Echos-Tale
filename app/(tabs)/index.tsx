@@ -9,11 +9,12 @@ import { HubCard } from '@/components/game/hub-card';
 import { StatPill } from '@/components/game/stat-pill';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { GameTheme } from '@/constants/theme';
-import { formatMoney, useElsewhereGame } from '@/hooks/use-elsewhere-game';
+import { formatDuration, formatMoney, useElsewhereGame } from '@/hooks/use-elsewhere-game';
 
 export default function CityScreen() {
   const game = useElsewhereGame();
   const { refreshRemoteProfileIfStale } = game;
+  const jailed = game.jailUntil !== null && game.jailUntil > game.now;
 
   useEffect(() => {
     const interval = setInterval(game.tick, 1000);
@@ -37,9 +38,9 @@ export default function CityScreen() {
         }}>
         <View style={{ flex: 1, gap: GameTheme.spacing.sm }}>
           <GameText tone="faint" variant="label">
-            Echo of Elsewhere
+            Echo&apos;s Tale
           </GameText>
-          <GameText variant="display">Elsewhere</GameText>
+          <GameText variant="display">Echo&apos;s Tale</GameText>
           <GameText tone="muted">
             A crooked little city where every button has receipts.
           </GameText>
@@ -72,7 +73,10 @@ export default function CityScreen() {
           }}>
           <StatPill label="Wallet" value={formatMoney(game.wallet)} />
           <StatPill label="Bank" value={formatMoney(game.bank)} />
-          <StatPill label="Heat" value={`${game.heat}/100`} />
+          <StatPill
+            label={jailed ? 'Jail' : 'Heat'}
+            value={jailed ? formatDuration((game.jailUntil ?? game.now) - game.now) : `${game.heat}/100`}
+          />
         </View>
       </GameCard>
 

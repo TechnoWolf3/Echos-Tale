@@ -71,7 +71,7 @@ const ElsewhereGameContext = createContext<ElsewhereGame | null>(null);
 
 const jobXpToNext = (level: number) => 100 + (level - 1) * 60;
 
-const formatDuration = (ms: number) => {
+export const formatDuration = (ms: number) => {
   const seconds = Math.max(0, Math.ceil(ms / 1000));
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;

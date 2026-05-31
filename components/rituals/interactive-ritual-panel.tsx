@@ -39,6 +39,11 @@ const wheelSlices = [
   { color: '#111827', ids: ['void_spin', 'echo_prank', 'lucky_multiplier', 'casino_voucher'], label: 'Chaos' },
 ];
 
+const wheelSegmentSize = 360 / wheelSlices.length;
+const wheelSegmentGradient = `conic-gradient(from -${wheelSegmentSize / 2}deg, ${wheelSlices
+  .map((slice, index) => `${slice.color} ${index * wheelSegmentSize}deg ${(index + 1) * wheelSegmentSize}deg`)
+  .join(', ')})`;
+
 function getErrorMessage(error: unknown) {
   if (error instanceof EchoApiError) {
     if (error.status === 404) {
@@ -119,6 +124,68 @@ function shuffleForDisplay<T>(items: T[], seed: string) {
   }
 
   return shuffled;
+}
+
+type CipherMarker = 'exact' | 'misplaced' | 'wrong' | null;
+
+function normalizeCipherMarker(value: unknown): CipherMarker {
+  const marker =
+    typeof value === 'string'
+      ? value
+      : value && typeof value === 'object'
+        ? 'state' in value && typeof value.state === 'string'
+          ? value.state
+          : 'status' in value && typeof value.status === 'string'
+            ? value.status
+            : 'type' in value && typeof value.type === 'string'
+              ? value.type
+              : 'value' in value && typeof value.value === 'string'
+                ? value.value
+                : null
+        : null;
+
+  switch (marker?.toLowerCase()) {
+    case 'correct':
+    case 'exact':
+    case 'g':
+    case 'green':
+    case 'hit':
+      return 'exact';
+    case 'm':
+    case 'misplaced':
+    case 'partial':
+    case 'present':
+    case 'wrong_spot':
+    case 'y':
+    case 'yellow':
+      return 'misplaced';
+    case 'absent':
+    case 'b':
+    case 'black':
+    case 'gray':
+    case 'grey':
+    case 'incorrect':
+    case 'miss':
+    case 'wrong':
+      return 'wrong';
+    default:
+      return null;
+  }
+}
+
+function readCipherMarkers(entry: EchoApiRitualHistoryEntry | null): CipherMarker[] {
+  if (!entry?.markers) {
+    return [];
+  }
+
+  const rawMarkers =
+    typeof entry.markers === 'string'
+      ? entry.markers.includes(',') || entry.markers.includes('|') || entry.markers.includes(' ')
+        ? entry.markers.split(/[,\s|]+/).filter(Boolean)
+        : Array.from(entry.markers)
+      : entry.markers;
+
+  return rawMarkers.map(normalizeCipherMarker);
 }
 
 function applyResponseProfile(
@@ -211,8 +278,8 @@ function EchoWheelView({
   }, [outcomeId]);
   const highlightedIndex = targetIndex >= 0 ? targetIndex : spinIndex % wheelSlices.length;
   const rotation = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
+    inputRange: [0, 18],
+    outputRange: ['0deg', '6480deg'],
   });
 
   useEffect(() => {
@@ -220,15 +287,14 @@ function EchoWheelView({
       return;
     }
 
-    const segmentAngle = 360 / wheelSlices.length;
-    const desiredAngle = 360 - targetIndex * segmentAngle;
-    const turns = 7;
+    const desiredAngle = 360 - targetIndex * wheelSegmentSize;
+    const turns = 13;
     const toValue = turns + desiredAngle / 360;
 
     spinValue.setValue(0);
     Animated.timing(spinValue, {
-      duration: 3200,
-      easing: Easing.out(Easing.cubic),
+      duration: 6400,
+      easing: Easing.out(Easing.poly(4)),
       toValue,
       useNativeDriver: true,
     }).start(() => {
@@ -241,9 +307,9 @@ function EchoWheelView({
     setSpinIndex(nextSpin);
     spinValue.setValue(0);
     Animated.timing(spinValue, {
-      duration: 1600,
-      easing: Easing.in(Easing.cubic),
-      toValue: 2,
+      duration: 5200,
+      easing: Easing.out(Easing.cubic),
+      toValue: 9,
       useNativeDriver: true,
     }).start();
     onAction({ action: 'spin' });
@@ -281,66 +347,131 @@ function EchoWheelView({
             style={{
               alignItems: 'center',
               aspectRatio: 1,
-              backgroundColor: GameTheme.colors.backgroundSoft,
-              borderColor: GameTheme.colors.echo,
+              backgroundColor: '#080B18',
+              borderColor: 'rgba(169, 243, 255, 0.86)',
               borderRadius: 999,
               borderWidth: 2,
-              boxShadow: `0 0 30px rgba(169, 243, 255, 0.18)`,
+              boxShadow: `0 0 34px rgba(169, 243, 255, 0.2), inset 0 0 28px rgba(6, 7, 18, 0.68)`,
               justifyContent: 'center',
               maxWidth: 310,
               minWidth: 260,
-              padding: GameTheme.spacing.md,
+              overflow: 'hidden',
+              padding: 10,
               transform: [{ rotate: rotation }],
               width: '82%',
             }}>
             <View
               style={{
                 alignItems: 'center',
-                borderColor: GameTheme.colors.violet,
+                backgroundColor: '#0B0D1B',
+                borderColor: 'rgba(177, 140, 255, 0.72)',
                 borderRadius: 999,
                 borderWidth: 1,
                 height: '100%',
                 justifyContent: 'center',
+                overflow: 'hidden',
                 position: 'relative',
                 width: '100%',
               }}>
+              <View
+                style={[
+                  {
+                    backgroundColor: '#101427',
+                    borderRadius: 999,
+                    height: '92%',
+                    opacity: 0.96,
+                    position: 'absolute',
+                    width: '92%',
+                  },
+                  process.env.EXPO_OS === 'web' ? ({ backgroundImage: wheelSegmentGradient } as object) : null,
+                ]}
+              />
+              <View
+                style={{
+                  backgroundColor: 'rgba(6, 7, 18, 0.34)',
+                  borderColor: 'rgba(255, 255, 255, 0.2)',
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  height: '76%',
+                  position: 'absolute',
+                  width: '76%',
+                }}
+              />
+              <View
+                style={{
+                  backgroundColor: 'rgba(169, 243, 255, 0.08)',
+                  borderColor: 'rgba(169, 243, 255, 0.5)',
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  height: '94%',
+                  position: 'absolute',
+                  width: '94%',
+                }}
+              />
               {wheelSlices.map((slice, index) => {
-                const angle = (360 / wheelSlices.length) * index;
+                const angle = wheelSegmentSize * index;
                 const isHighlighted = index === highlightedIndex;
 
                 return (
                   <View
                     key={slice.label}
                     style={{
-                      alignItems: 'center',
-                      height: '50%',
-                      justifyContent: 'flex-start',
-                      left: '50%',
-                      opacity: isHighlighted ? 1 : 0.66,
+                      height: '100%',
                       position: 'absolute',
-                      top: 0,
-                      transform: [{ translateX: -42 }, { rotate: `${angle}deg` }],
-                      transformOrigin: '42px 100%',
-                      width: 84,
+                      width: '100%',
                     }}>
                     <View
                       style={{
                         alignItems: 'center',
-                        backgroundColor: slice.color,
-                        borderColor: isHighlighted ? GameTheme.colors.text : 'rgba(255,255,255,0.22)',
-                        borderRadius: GameTheme.radius.sm,
-                        borderWidth: isHighlighted ? 2 : 1,
-                        justifyContent: 'center',
-                        minHeight: 42,
-                        paddingHorizontal: GameTheme.spacing.xs,
-                        paddingVertical: 4,
-                        width: 82,
+                        height: 18,
+                        justifyContent: 'flex-start',
+                        left: '50%',
+                        marginLeft: -1,
+                        marginTop: -9,
+                        position: 'absolute',
+                        top: '50%',
+                        transform: [{ rotate: `${angle}deg` }, { translateY: -122 }],
+                        width: 2,
+                      }}>
+                      <View
+                        style={{
+                          backgroundColor: isHighlighted ? GameTheme.colors.text : 'rgba(255, 255, 255, 0.45)',
+                          borderRadius: 99,
+                          height: 18,
+                          width: isHighlighted ? 3 : 2,
+                        }}
+                      />
+                    </View>
+                    <View
+                      style={{
+                        alignItems: 'center',
+                        height: 24,
+                        justifyContent: 'flex-start',
+                        left: '50%',
+                        marginLeft: -34,
+                        marginTop: -12,
+                        opacity: isHighlighted ? 1 : 0.82,
+                        position: 'absolute',
+                        top: '50%',
+                        transform: [{ rotate: `${angle}deg` }, { translateY: -92 }, { rotate: `${-angle}deg` }],
+                        width: 68,
                       }}>
                       <GameText
                         style={{
-                          color: slice.color === '#111827' ? GameTheme.colors.text : GameTheme.colors.background,
-                          fontSize: 10,
+                          backgroundColor: slice.color === '#111827' ? 'rgba(17, 24, 39, 0.72)' : `${slice.color}D9`,
+                          borderColor: isHighlighted ? GameTheme.colors.text : 'rgba(255, 255, 255, 0.24)',
+                          borderRadius: 99,
+                          borderWidth: 1,
+                          color: slice.color === '#111827' ? GameTheme.colors.textMuted : GameTheme.colors.background,
+                          fontSize: 9,
+                          lineHeight: 11,
+                          opacity: isHighlighted ? 1 : 0.86,
+                          paddingHorizontal: 6,
+                          paddingVertical: 4,
                           textAlign: 'center',
+                          textShadowColor: slice.color === '#111827' ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.16)',
+                          textShadowOffset: { height: 1, width: 0 },
+                          textShadowRadius: 3,
                         }}
                         variant="label">
                         {slice.label}
@@ -352,10 +483,11 @@ function EchoWheelView({
               <View
                 style={{
                   alignItems: 'center',
-                  backgroundColor: '#130B24',
+                  backgroundColor: '#10091F',
                   borderColor: GameTheme.colors.ember,
                   borderRadius: 999,
                   borderWidth: 2,
+                  boxShadow: `0 0 18px rgba(244, 184, 96, 0.24)`,
                   height: 96,
                   justifyContent: 'center',
                   padding: GameTheme.spacing.sm,
@@ -417,37 +549,61 @@ function EchoCipherView({
   return (
     <View style={{ gap: GameTheme.spacing.md }}>
       <View style={{ gap: GameTheme.spacing.xs }}>
-        {rows.map((entry, rowIndex) => (
-          <View
-            key={`cipher-${rowIndex}`}
-            style={{
-              alignItems: 'center',
-              flexDirection: 'row',
-              gap: GameTheme.spacing.sm,
-            }}>
-            <View style={{ flexDirection: 'row', gap: 4 }}>
-              {Array.from({ length: 5 }, (_, digitIndex) => (
-                <View
-                  key={`cipher-${rowIndex}-${digitIndex}`}
-                  style={{
-                    alignItems: 'center',
-                    backgroundColor: GameTheme.colors.backgroundSoft,
-                    borderColor: GameTheme.colors.borderBright,
-                    borderRadius: GameTheme.radius.sm,
-                    borderWidth: 1,
-                    height: 38,
-                    justifyContent: 'center',
-                    width: 34,
-                  }}>
-                  <GameText variant="label">{entry?.guess?.[digitIndex] ?? '-'}</GameText>
-                </View>
-              ))}
+        {rows.map((entry, rowIndex) => {
+          const markers = readCipherMarkers(entry);
+
+          return (
+            <View
+              key={`cipher-${rowIndex}`}
+              style={{
+                alignItems: 'center',
+                flexDirection: 'row',
+                gap: GameTheme.spacing.sm,
+              }}>
+              <View style={{ flexDirection: 'row', gap: 4 }}>
+                {Array.from({ length: 5 }, (_, digitIndex) => {
+                  const digit = entry?.guess?.[digitIndex] ?? '-';
+                  const marker = markers[digitIndex];
+                  const backgroundColor =
+                    marker === 'exact'
+                      ? GameTheme.colors.success
+                      : marker === 'misplaced'
+                        ? GameTheme.colors.ember
+                        : GameTheme.colors.backgroundSoft;
+                  const borderColor =
+                    marker === 'exact'
+                      ? 'rgba(131, 243, 181, 0.95)'
+                      : marker === 'misplaced'
+                        ? 'rgba(244, 184, 96, 0.95)'
+                        : GameTheme.colors.borderBright;
+                  const textColor = marker === 'exact' || marker === 'misplaced' ? GameTheme.colors.background : GameTheme.colors.text;
+
+                  return (
+                    <View
+                      key={`cipher-${rowIndex}-${digitIndex}`}
+                      style={{
+                        alignItems: 'center',
+                        backgroundColor,
+                        borderColor,
+                        borderRadius: GameTheme.radius.sm,
+                        borderWidth: 1,
+                        height: 38,
+                        justifyContent: 'center',
+                        width: 34,
+                      }}>
+                      <GameText style={{ color: textColor }} variant="label">
+                        {digit}
+                      </GameText>
+                    </View>
+                  );
+                })}
+              </View>
+              <GameText tone="muted" variant="caption">
+                {entry ? `${entry.correctSpot ?? entry.exact ?? 0} exact | ${entry.wrongSpot ?? entry.misplaced ?? 0} misplaced` : 'Waiting'}
+              </GameText>
             </View>
-            <GameText tone="muted" variant="caption">
-              {entry ? `${entry.correctSpot ?? entry.exact ?? 0} exact | ${entry.wrongSpot ?? entry.misplaced ?? 0} misplaced` : 'Waiting'}
-            </GameText>
-          </View>
-        ))}
+          );
+        })}
       </View>
       <GameCard style={{ backgroundColor: GameTheme.colors.backgroundSoft }}>
         <GameText tone="faint" variant="label">

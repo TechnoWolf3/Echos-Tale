@@ -325,7 +325,7 @@ export type EchoApiRitualHistoryEntry = {
   correctSpot?: number;
   exact?: number;
   guess?: string;
-  markers?: string[] | string;
+  markers?: (string | { state?: string; status?: string; type?: string; value?: string })[] | string;
   misplaced?: number;
   wrongSpot?: number;
 };

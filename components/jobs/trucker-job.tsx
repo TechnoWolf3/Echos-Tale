@@ -6,7 +6,7 @@ import { GameText } from '@/components/game/game-text';
 import { ProgressBar } from '@/components/game/progress-bar';
 import { ResultCard } from '@/components/game/result-card';
 import { GameTheme } from '@/constants/theme';
-import { useElsewhereGame } from '@/hooks/use-elsewhere-game';
+import { formatDuration, useElsewhereGame } from '@/hooks/use-elsewhere-game';
 import {
   generateTruckerManifest,
   resolveTruckerRun,
@@ -23,6 +23,8 @@ export function TruckerJob() {
   const [session, setSession] = useState<TruckerSession | null>(null);
   const [result, setResult] = useState<ShiftResolution | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const jailed = game.jailUntil !== null && game.jailUntil > game.now;
+  const jailLabel = jailed ? `Jailed ${formatDuration((game.jailUntil ?? game.now) - game.now)}` : null;
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -31,7 +33,7 @@ export function TruckerJob() {
   }, []);
 
   const refreshManifest = () => {
-    if (refreshCount >= 5 || session?.status === 'active') {
+    if (jailed || refreshCount >= 5 || session?.status === 'active') {
       return;
     }
 
@@ -40,14 +42,14 @@ export function TruckerJob() {
   };
 
   const startRun = () => {
-    if (!session || session.status === 'paid') {
+    if (!jailed && (!session || session.status === 'paid')) {
       setResult(null);
       setSession(startTruckerRun(manifest));
     }
   };
 
   const collect = () => {
-    if (!session || session.status !== 'active' || now < session.readyAt) {
+    if (jailed || !session || session.status !== 'active' || now < session.readyAt) {
       return;
     }
 
@@ -97,19 +99,19 @@ export function TruckerJob() {
           </GameText>
           <Pressable
             accessibilityRole="button"
-            disabled={now < session.readyAt}
+            disabled={jailed || now < session.readyAt}
             onPress={collect}
             style={({ pressed }) => ({
               alignItems: 'center',
               backgroundColor: GameTheme.colors.backgroundSoft,
-              borderColor: now >= session.readyAt ? GameTheme.colors.success : GameTheme.colors.border,
+              borderColor: !jailed && now >= session.readyAt ? GameTheme.colors.success : GameTheme.colors.border,
               borderRadius: GameTheme.radius.sm,
               borderWidth: 1,
-              opacity: now >= session.readyAt ? (pressed ? 0.76 : 1) : 0.5,
+              opacity: !jailed && now >= session.readyAt ? (pressed ? 0.76 : 1) : 0.5,
               padding: GameTheme.spacing.md,
             })}>
-            <GameText tone={now >= session.readyAt ? 'echo' : 'faint'} variant="label">
-              Collect Pay
+            <GameText tone={!jailed && now >= session.readyAt ? 'echo' : 'faint'} variant="label">
+              {jailLabel ?? 'Collect Pay'}
             </GameText>
           </Pressable>
         </View>
@@ -126,37 +128,38 @@ export function TruckerJob() {
             />
           ) : null}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={startRun}
-            style={({ pressed }) => ({
-              backgroundColor: GameTheme.colors.backgroundSoft,
-              borderColor: GameTheme.colors.success,
-              borderRadius: GameTheme.radius.sm,
-              borderWidth: 1,
-              opacity: pressed ? 0.76 : 1,
-              padding: GameTheme.spacing.md,
-            })}>
-            <GameText tone="echo" variant="label">
-              Start Job
-            </GameText>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            disabled={refreshCount >= 5}
-            onPress={refreshManifest}
-            style={({ pressed }) => ({
-              backgroundColor: GameTheme.colors.backgroundSoft,
-              borderColor: GameTheme.colors.borderBright,
-              borderRadius: GameTheme.radius.sm,
-              borderWidth: 1,
-              opacity: refreshCount >= 5 ? 0.5 : pressed ? 0.76 : 1,
-              padding: GameTheme.spacing.md,
-            })}>
-            <GameText tone="echo" variant="label">
-              New Manifest ({5 - refreshCount})
-            </GameText>
-          </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={jailed}
+              onPress={startRun}
+              style={({ pressed }) => ({
+                backgroundColor: GameTheme.colors.backgroundSoft,
+                borderColor: jailed ? GameTheme.colors.border : GameTheme.colors.success,
+                borderRadius: GameTheme.radius.sm,
+                borderWidth: 1,
+                opacity: jailed ? 0.5 : pressed ? 0.76 : 1,
+                padding: GameTheme.spacing.md,
+              })}>
+              <GameText tone={jailed ? 'faint' : 'echo'} variant="label">
+                {jailLabel ?? 'Start Job'}
+              </GameText>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={jailed || refreshCount >= 5}
+              onPress={refreshManifest}
+              style={({ pressed }) => ({
+                backgroundColor: GameTheme.colors.backgroundSoft,
+                borderColor: GameTheme.colors.borderBright,
+                borderRadius: GameTheme.radius.sm,
+                borderWidth: 1,
+                opacity: jailed || refreshCount >= 5 ? 0.5 : pressed ? 0.76 : 1,
+                padding: GameTheme.spacing.md,
+              })}>
+              <GameText tone={jailed ? 'faint' : 'echo'} variant="label">
+                {jailed ? 'Locked' : `New Manifest (${5 - refreshCount})`}
+              </GameText>
+            </Pressable>
           </View>
         </View>
       )}
