@@ -8,6 +8,7 @@ import { GameScreen } from '@/components/game/game-screen';
 import { GameText } from '@/components/game/game-text';
 import { HubCard } from '@/components/game/hub-card';
 import { ProgressBar } from '@/components/game/progress-bar';
+import { CrimeJob } from '@/components/jobs/crime-job';
 import { EmailSorterJob } from '@/components/jobs/email-sorter-job';
 import { FarmingEnterprise } from '@/components/jobs/farming-enterprise';
 import { ShiftJob } from '@/components/jobs/shift-job';
@@ -231,27 +232,7 @@ export default function JobsScreen() {
 
       {activeHub === 'crime' ? (
         <View style={{ gap: GameTheme.spacing.md }}>
-          <ActionCard
-            description="Fast cash, bad fingerprints. Clean runs pay. Messy ones leave your shoes remembered."
-            disabled={!!game.sessionToken || !game.canAct('storeRobbery')}
-            label={game.sessionToken ? 'Server Soon' : game.getCooldownLabel('storeRobbery')}
-            meta="Rob Store | raises heat | fines feed Server Bank"
-            onPress={game.runStoreRobbery}
-            title="Store Robbery"
-            tone="danger"
-          />
-          <ActionCard
-            description="Pay a patrol officer to forget your name. Sometimes they forget the wrong thing."
-            disabled={!!game.sessionToken || game.wallet < 5_000}
-            label={game.sessionToken ? 'Server Soon' : game.wallet < 5_000 ? 'Need $5k' : 'Pay $5k'}
-            meta="Bribe feeds the house | heat reduction"
-            onPress={game.bribeOfficer}
-            title="Bribe Officer"
-            tone="ember"
-          />
-          <HubCard detail="Quiet choices. No flash. No regular spots." meta="Crime | heat reduction" status="Later" title="Lay Low" tone="ember" />
-          <HubCard detail="Dialogue pressure, persuasion, suspicion, and knowing when to hang up." meta="Crime | heat | suspicion" status="MVP Next" title="Scam Call" tone="danger" />
-          <HubCard detail="Scout, entry, inside, vault, loot, escape, cleanup. A whole bad evening." meta="Crime | multi-phase | high cooldown" status="Later" title="Heist" tone="danger" />
+          <CrimeJob />
         </View>
       ) : null}
 

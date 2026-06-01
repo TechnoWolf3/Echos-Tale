@@ -386,6 +386,99 @@ export type EchoApiRitualActionBody =
   | { action: 'spin' }
   | { action: 'submit'; order: string[] };
 
+export type EchoApiCrimeId = 'store_robbery' | 'scam_call' | 'heist' | 'major_heist' | 'bribe_officer' | 'lay_low' | string;
+
+export type EchoApiCrimeCooldown = {
+  key?: string;
+  label?: string;
+  nextAvailableAt?: string | null;
+  ready?: boolean;
+  remainingMs?: number;
+  remainingSeconds?: number;
+  until?: string | null;
+};
+
+export type EchoApiCrimeHeatInfo = {
+  displayHeat?: number;
+  expiresAt?: string | null;
+  heat?: number;
+  rawHeat?: number;
+};
+
+export type EchoApiCrimeAction = {
+  available?: boolean;
+  cooldownKey?: string;
+  description?: string;
+  disabledReason?: string | null;
+  id: EchoApiCrimeId;
+  label?: string;
+  name?: string;
+  playable?: boolean;
+  status?: string;
+};
+
+export type EchoApiCrimeChoice = {
+  description?: string;
+  disabled?: boolean;
+  id?: string;
+  label?: string;
+  text?: string;
+  title?: string;
+};
+
+export type EchoApiCrimeSessionStatus = 'active' | 'expired' | 'resolved' | string;
+
+export type EchoApiCrimeSession = {
+  availableActions?: string[];
+  choices?: EchoApiCrimeChoice[];
+  crimeId?: EchoApiCrimeId;
+  crime_id?: EchoApiCrimeId;
+  currentHeat?: number;
+  expiresAt?: string | null;
+  heat?: number;
+  id?: string;
+  message?: string;
+  phase?: string;
+  profile?: EchoApiProfile;
+  prompt?: string;
+  result?: Record<string, unknown> | string | null;
+  result_json?: Record<string, unknown> | null;
+  session?: EchoApiCrimeSession;
+  sessionId?: string;
+  state?: Record<string, unknown>;
+  state_json?: Record<string, unknown>;
+  status: EchoApiCrimeSessionStatus;
+  step?: number;
+  title?: string;
+};
+
+export type EchoApiCrimeDashboard = {
+  actions?: EchoApiCrimeAction[];
+  availableActions?: EchoApiCrimeAction[];
+  cooldowns?: Record<string, EchoApiCrimeCooldown | string | number | null> | EchoApiCrimeCooldown[];
+  heatInfo?: EchoApiCrimeHeatInfo;
+  jailed?: boolean;
+  jailedUntil?: string | null;
+  profile?: EchoApiProfile;
+};
+
+export type EchoApiCrimeSessionResponse = {
+  cooldowns?: EchoApiCrimeDashboard['cooldowns'];
+  heatInfo?: EchoApiCrimeHeatInfo;
+  message?: string;
+  profile?: EchoApiProfile;
+  result?: Record<string, unknown> | string | null;
+  session?: EchoApiCrimeSession;
+} & Partial<EchoApiCrimeSession>;
+
+export type EchoApiCrimeActionBody =
+  | { action: 'go' | 'hangup' }
+  | { choiceIndex: number }
+  | { optionId: string }
+  | { optionIndex: number }
+  | { targetId: string }
+  | { tierId: string };
+
 export type EchoApiBankLoan = {
   defaultAt?: string | null;
   dueAt?: string | null;
@@ -1173,6 +1266,35 @@ export function fetchRitualSession(sessionToken: string, sessionId: string, sign
 
 export function sendRitualSessionAction(sessionToken: string, sessionId: string, body: EchoApiRitualActionBody) {
   return echoApiRequest<EchoApiRitualSessionResponse>(`/v1/rituals/sessions/${encodeURIComponent(sessionId)}/action`, {
+    body,
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchCrimeDashboard(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiCrimeDashboard>('/v1/jobs/crime', {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function startCrimeSession(sessionToken: string, crimeId: EchoApiCrimeId) {
+  return echoApiRequest<EchoApiCrimeSessionResponse>(`/v1/jobs/crime/${encodeURIComponent(crimeId)}/start`, {
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchCrimeSession(sessionToken: string, sessionId: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiCrimeSessionResponse>(`/v1/jobs/crime/sessions/${encodeURIComponent(sessionId)}`, {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function sendCrimeSessionAction(sessionToken: string, sessionId: string, body: EchoApiCrimeActionBody) {
+  return echoApiRequest<EchoApiCrimeSessionResponse>(`/v1/jobs/crime/sessions/${encodeURIComponent(sessionId)}/action`, {
     body,
     method: 'POST',
     token: sessionToken,
