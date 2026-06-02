@@ -32,33 +32,33 @@ const crimeActions: {
   {
     description: 'A short interactive run with heat, evidence, choices, and a server-owned result.',
     id: 'store_robbery',
-    meta: '15m global | 15m robbery',
+    meta: '15m robbery cooldown',
     title: 'Store Robbery',
     tone: 'danger',
   },
   {
     description: 'Pressure a target through dialogue, then bail out or try to close before suspicion spikes.',
     id: 'scam_call',
-    meta: '15m global | 45m scam',
+    meta: '45m scam cooldown',
     title: 'Scam Call',
     tone: 'danger',
   },
   {
     description: 'Scout, enter, crack, loot, escape, and clean up across a long server-run session.',
     id: 'heist',
-    meta: '15m global | 12h heist',
+    meta: '12h heist cooldown',
     title: 'Heist',
     tone: 'danger',
   },
   {
     description: 'The larger version of a bad plan. Higher payout, harsher heat, longer cooldown.',
     id: 'major_heist',
-    meta: '15m global | 24h major',
+    meta: '24h major cooldown',
     title: 'Major Heist',
     tone: 'danger',
   },
   {
-    description: 'Choose a contact and bribe tier. Money moves immediately on Railway.',
+    description: 'Choose a contact and bribe tier. Money moves immediately through the house ledger.',
     id: 'bribe_officer',
     meta: '30m utility | skips global',
     title: 'Bribe Officer',
@@ -129,7 +129,7 @@ function getSessionPrompt(session: EchoApiCrimeSession | null) {
     getString(state?.scenarioText) ??
     getString(visiblePrompt?.text) ??
     session?.message ??
-    'Railway is holding the next move.'
+    'Echo is holding the next move.'
   );
 }
 
@@ -147,12 +147,36 @@ function getActionIds(session: EchoApiCrimeSession | null) {
 
 function getSessionHeat(session: EchoApiCrimeSession | null) {
   const state = getStateRecord(session);
-  return session?.currentHeat ?? session?.heat ?? getNumber(state?.currentHeat) ?? getNumber(state?.heat) ?? null;
+  return (
+    session?.currentHeat ??
+    session?.heat ??
+    getNumber(state?.currentHeat) ??
+    getNumber(state?.heat) ??
+    getNumber(state?.displayHeat) ??
+    getNumber(state?.rawHeat) ??
+    null
+  );
 }
 
 function getSessionStep(session: EchoApiCrimeSession | null) {
   const state = getStateRecord(session);
   return session?.phase ?? getString(state?.phase) ?? getString(state?.stepLabel) ?? (typeof session?.step === 'number' ? `Step ${session.step + 1}` : null);
+}
+
+function clampHeat(value: number | null) {
+  return Math.max(0, Math.min(100, value ?? 0));
+}
+
+function heatColor(heat: number) {
+  if (heat >= 70) {
+    return GameTheme.colors.danger;
+  }
+
+  if (heat >= 35) {
+    return GameTheme.colors.ember;
+  }
+
+  return GameTheme.colors.success;
 }
 
 function getResultText(session: EchoApiCrimeSession | null, response: EchoApiCrimeSessionResponse | null) {
@@ -382,8 +406,10 @@ export function CrimeJob() {
   const sessionId = getSessionId(sessionResponse);
   const choices = useMemo(() => getSessionChoices(session), [session]);
   const actionIds = useMemo(() => getActionIds(session), [session]);
-  const heat = dashboard?.heatInfo?.displayHeat ?? dashboard?.heatInfo?.heat ?? dashboard?.heatInfo?.rawHeat ?? game.heat;
-  const heatProgress = Math.max(0, Math.min(1, heat / 100));
+  const sessionHeat = getSessionHeat(session);
+  const heat = clampHeat(sessionHeat ?? dashboard?.heatInfo?.displayHeat ?? dashboard?.heatInfo?.heat ?? dashboard?.heatInfo?.rawHeat ?? game.heat);
+  const heatProgress = heat / 100;
+  const heatTone = heatColor(heat);
 
   const loadDashboard = useCallback(
     async (signal?: AbortSignal) => {
@@ -446,7 +472,7 @@ export function CrimeJob() {
   }, [loadDashboard]);
 
   useEffect(() => {
-    if (!sessionToken || !sessionId || session?.status !== 'active') {
+    if (!sessionToken || !sessionId || session?.status !== 'active' || busy) {
       return;
     }
 
@@ -459,7 +485,7 @@ export function CrimeJob() {
     }, 8_000);
 
     return () => clearInterval(interval);
-  }, [mergeResponse, session?.status, sessionId, sessionToken]);
+  }, [busy, mergeResponse, session?.status, sessionId, sessionToken]);
 
   const beginCrime = useCallback(
     async (crimeId: EchoApiCrimeId) => {
@@ -513,7 +539,7 @@ export function CrimeJob() {
       <GameCard elevated>
         <GameText variant="title">Crime</GameText>
         <GameText tone="muted">
-          Crime is Railway-owned. Link Discord first so payouts, heat, jail, cooldowns, fines, and inventory all resolve on the server ledger.
+          Crime needs the Discord ledger. Link Discord first so payouts, heat, jail, cooldowns, fines, and inventory all resolve cleanly.
         </GameText>
       </GameCard>
     );
@@ -524,9 +550,9 @@ export function CrimeJob() {
       <GameCard elevated>
         <View style={{ gap: GameTheme.spacing.xs }}>
           <GameText variant="title">Crime Status</GameText>
-          <GameText tone="muted">The app sends choices only. Railway owns every roll, transfer, cooldown, and jail check.</GameText>
+          <GameText tone="muted">The app sends choices only. The city ledger handles every roll, transfer, cooldown, and jail check.</GameText>
         </View>
-        <ProgressBar progress={heatProgress} />
+        <ProgressBar color={heatTone} progress={heatProgress} />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
           <GameText tone="faint" variant="caption">
             Heat {Math.round(heat)}/100
@@ -568,13 +594,25 @@ export function CrimeJob() {
             <GameText tone="faint" variant="caption">
               {session.status}
               {getSessionStep(session) ? ` | ${titleCase(getSessionStep(session))}` : ''}
-              {getSessionHeat(session) !== null ? ` | heat ${Math.round(getSessionHeat(session)!)} ` : ''}
             </GameText>
+          </View>
+
+          <View style={{ gap: GameTheme.spacing.xs }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: GameTheme.spacing.md }}>
+              <GameText tone="faint" variant="caption">
+                Run Heat
+              </GameText>
+              <GameText style={{ color: heatTone }} variant="label">
+                {Math.round(heat)}/100
+              </GameText>
+            </View>
+            <ProgressBar color={heatTone} progress={heatProgress} />
           </View>
 
           {session.status === 'active' ? (
             <View style={{ gap: GameTheme.spacing.md }}>
               <GameText>{getSessionPrompt(session)}</GameText>
+              {busy === 'session' ? <GameText tone="echo">Echo is weighing that choice...</GameText> : null}
               {choices.length > 0 ? (
                 choices.map((choice, index) => (
                   <ChoiceButton
@@ -586,7 +624,7 @@ export function CrimeJob() {
                   />
                 ))
               ) : (
-                <GameText tone="muted">No choices returned yet. Refreshing will ask Railway for the current session state.</GameText>
+                <GameText tone="muted">No choices returned yet. Refreshing will ask Echo for the current session state.</GameText>
               )}
               {actionIds.includes('go') || actionIds.includes('hangup') ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>

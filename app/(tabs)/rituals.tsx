@@ -77,7 +77,7 @@ function getErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return 'Railway did not answer the ritual room.';
+  return 'The ritual room did not answer.';
 }
 
 function formatReset(value: string | null) {
@@ -157,13 +157,13 @@ function ritualDescription(ritual: EchoApiRitual, config: EchoApiGameConfig | nu
 
   if (ritual.interactive) {
     return rewardText
-      ? `${rewardText}. This one needs its own Echo screen before it can settle through Railway.`
-      : 'This one needs its own Echo screen before it can settle through Railway.';
+      ? `${rewardText}. This one needs its own Echo screen before it can settle.`
+      : 'This one needs its own Echo screen before it can settle.';
   }
 
   return rewardText
-    ? `${rewardText}. Railway owns the claim, cooldown, payout, and transaction.`
-    : 'Railway owns the claim, cooldown, payout, and transaction.';
+    ? `${rewardText}. Echo owns the claim, cooldown, payout, and transaction.`
+    : 'Echo owns the claim, cooldown, payout, and transaction.';
 }
 
 function normalizeRituals(value: unknown) {
@@ -198,7 +198,7 @@ export default function RitualsScreen() {
   const primaryRituals = useMemo(() => rituals.filter((ritual) => ritual.placement === 'primary'), [rituals]);
   const otherRituals = useMemo(() => rituals.filter((ritual) => ritual.placement !== 'primary'), [rituals]);
 
-  const loadRailwayRituals = useCallback(
+  const loadLinkedRituals = useCallback(
     async (signal?: AbortSignal) => {
       if (!sessionToken) {
         return;
@@ -235,7 +235,7 @@ export default function RitualsScreen() {
     const controller = new AbortController();
 
     if (sessionToken) {
-      loadRailwayRituals(controller.signal).catch((requestError: unknown) => {
+      loadLinkedRituals(controller.signal).catch((requestError: unknown) => {
         if (!controller.signal.aborted) {
           setError(getErrorMessage(requestError));
           setLoadingRituals(false);
@@ -244,9 +244,9 @@ export default function RitualsScreen() {
     }
 
     return () => controller.abort();
-  }, [loadRailwayRituals, sessionToken]);
+  }, [loadLinkedRituals, sessionToken]);
 
-  const claimRailwayRitual = async (ritual: EchoApiRitual) => {
+  const claimLinkedRitual = async (ritual: EchoApiRitual) => {
     if (!sessionToken || ritual.interactive) {
       return;
     }
@@ -259,7 +259,7 @@ export default function RitualsScreen() {
       const result = await claimRitual(sessionToken, ritual.id);
       applyRemoteProfile(result.profile, { announce: false });
       setMessage(`${stripDiscordFormatting(result.message)} Credited ${formatMoney(result.payout?.creditedAmount ?? 0)}.`);
-      await loadRailwayRituals();
+      await loadLinkedRituals();
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {
@@ -282,9 +282,9 @@ export default function RitualsScreen() {
 
       {sessionToken ? (
         <GameCard>
-          <GameText variant="title">Railway Ritual Ledger</GameText>
+          <GameText variant="title">Ritual Ledger</GameText>
           <GameText tone="muted">
-            Claims and interactive rites route through Railway where endpoints exist. The app renders the room; Railway keeps the receipts.
+            Claims and interactive rites route through the shared ledger where endpoints exist. The app renders the room; Echo keeps the receipts.
           </GameText>
           <GameText tone="faint" variant="caption">
             Config {gameConfig?.configVersion ?? 'loading'}
@@ -308,7 +308,7 @@ export default function RitualsScreen() {
         <InteractiveRitualPanel
           applyRemoteProfile={applyRemoteProfile}
           onClose={() => setSelectedRitual(null)}
-          onRefreshRituals={() => loadRailwayRituals()}
+          onRefreshRituals={() => loadLinkedRituals()}
           ritual={selectedRitual}
           sessionToken={sessionToken}
         />
@@ -318,7 +318,7 @@ export default function RitualsScreen() {
         <>
       <View style={{ gap: GameTheme.spacing.md }}>
         <GameText variant="title">Primary Rituals</GameText>
-        {sessionToken && loadingRituals ? <GameText tone="muted">Loading Railway rituals...</GameText> : null}
+        {sessionToken && loadingRituals ? <GameText tone="muted">Loading rituals...</GameText> : null}
         {sessionToken && primaryRituals.length > 0 ? (
           primaryRituals.map((ritual) => (
             <ActionCard
@@ -326,8 +326,8 @@ export default function RitualsScreen() {
               disabled={busyRitual !== null || !ritual.available || ritual.interactive}
               key={ritual.id}
               label={ritual.interactive ? 'Needs Flow' : ritual.available ? 'Claim' : formatReset(ritual.nextClaimAt)}
-              meta={`id: ${ritual.id} | Railway config ${gameConfig?.configVersion ?? '...'}`}
-              onPress={() => claimRailwayRitual(ritual)}
+              meta={`id: ${ritual.id} | config ${gameConfig?.configVersion ?? '...'}`}
+              onPress={() => claimLinkedRitual(ritual)}
               title={ritual.name}
               tone="echo"
             />
@@ -358,7 +358,7 @@ export default function RitualsScreen() {
           fallbackPrimaryRituals.map((ritual) => (
             <HubCard
               key={ritual.id}
-              detail={`${ritual.detail} Railway did not return this ritual in the list yet.`}
+              detail={`${ritual.detail} This ritual has not appeared in the list yet.`}
               meta={ritual.meta}
               status="Waiting"
               title={ritual.title}
@@ -386,7 +386,7 @@ export default function RitualsScreen() {
                   return;
                 }
 
-                void claimRailwayRitual(ritual);
+                void claimLinkedRitual(ritual);
               }}
               title={ritual.shortName ?? ritual.name}
               tone={ritual.interactive ? 'ember' : 'echo'}
@@ -418,7 +418,7 @@ export default function RitualsScreen() {
           fallbackOtherRituals.map((ritual) => (
             <HubCard
               key={ritual.id}
-              detail={`${ritual.detail} Railway did not return this ritual in the list yet.`}
+              detail={`${ritual.detail} This ritual has not appeared in the list yet.`}
               meta={ritual.meta}
               status="Waiting"
               title={ritual.title}

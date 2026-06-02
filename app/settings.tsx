@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { TextInput, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
 
 import { CasinoButton } from '@/components/casino/casino-button';
 import { GameCard } from '@/components/game/game-card';
@@ -13,9 +14,11 @@ import {
   echoApiBaseUrl,
   echoApiConfigError,
   fetchEchoAdminPanel,
+  fetchEchoAdminUsers,
   isEchoApiConfigured,
   reportEchoAdminFailedUnlock,
   runEchoAdminPanelAction,
+  type EchoApiAdminUser,
   type EchoApiAdminPanel,
   type EchoApiAdminPanelAction,
   type EchoApiAdminPanelField,
@@ -78,14 +81,37 @@ function getInitialFieldValues(action: EchoApiAdminPanelAction | null): FieldVal
   );
 }
 
+function getAdminUserDiscordId(user: EchoApiAdminUser) {
+  return user.discordUserId ?? user.discord_user_id ?? '';
+}
+
+function getAdminUserName(user: EchoApiAdminUser) {
+  return user.displayName ?? user.display_name ?? user.username ?? 'Unknown Echo User';
+}
+
+function getAdminUserAvatar(user: EchoApiAdminUser) {
+  return user.avatarUrl ?? user.avatar_url ?? null;
+}
+
+function isUserField(field: EchoApiAdminPanelField) {
+  return field.type === 'user' || field.id === 'user_id' || field.id === 'discord_user_id';
+}
+
+function isConfirmationField(field: EchoApiAdminPanelField) {
+  const text = `${field.id} ${field.label} ${field.placeholder ?? ''}`.toLowerCase();
+  return text.includes('confirm');
+}
+
 export default function SettingsScreen() {
   const game = useElsewhereGame();
   const [devPasswordInput, setDevPasswordInput] = useState('');
   const [adminPassword, setAdminPassword] = useState<string | null>(null);
   const [adminPanel, setAdminPanel] = useState<EchoApiAdminPanel | null>(null);
+  const [adminUsers, setAdminUsers] = useState<EchoApiAdminUser[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
   const [fieldValues, setFieldValues] = useState<FieldValues>({});
+  const [userSearchByField, setUserSearchByField] = useState<Record<string, string>>({});
   const [confirmationInput, setConfirmationInput] = useState('');
   const [devBusy, setDevBusy] = useState(false);
   const [failedUnlockCount, setFailedUnlockCount] = useState(0);
@@ -104,6 +130,7 @@ export default function SettingsScreen() {
   const unlocked = !!adminPassword && !!adminPanel;
 
   const visibleFields = useMemo(() => selectedAction?.fields ?? [], [selectedAction]);
+  const needsSeparateConfirmation = !!selectedAction?.requiresConfirmation && !visibleFields.some(isConfirmationField);
   const requiredFieldsReady = useMemo(
     () =>
       visibleFields.every((field) => {
@@ -115,7 +142,7 @@ export default function SettingsScreen() {
       }),
     [fieldValues, visibleFields]
   );
-  const confirmationReady = !selectedAction?.requiresConfirmation || confirmationInput.trim() === 'CONFIRM';
+  const confirmationReady = !needsSeparateConfirmation || confirmationInput.trim() === 'CONFIRM';
   const canRunAction =
     unlocked && !devBusy && !!game.sessionToken && !!selectedAction && requiredFieldsReady && confirmationReady;
 
@@ -133,9 +160,26 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     setFieldValues(getInitialFieldValues(selectedAction));
+    setUserSearchByField({});
     setConfirmationInput('');
     setResultText(null);
   }, [selectedAction]);
+
+  const getFilteredAdminUsers = (field: EchoApiAdminPanelField) => {
+    const query = String(userSearchByField[field.id] ?? '').trim().toLowerCase();
+
+    if (!query) {
+      return adminUsers.slice(0, 12);
+    }
+
+    return adminUsers
+      .filter((user) => {
+        const discordId = getAdminUserDiscordId(user);
+        const name = getAdminUserName(user);
+        return `${name} ${discordId}`.toLowerCase().includes(query);
+      })
+      .slice(0, 12);
+  };
 
   const unlockAdminPanel = async () => {
     const password = devPasswordInput.trim();
@@ -165,15 +209,23 @@ export default function SettingsScreen() {
       setSelectedCategoryId(panel.categories[0]?.id ?? null);
       setSelectedActionId(panel.categories[0]?.actions[0]?.id ?? null);
       setFailedUnlockCount(0);
+      game.setDevToolsUnlocked(true);
       setMessage(panel.message ?? 'Admin tools unlocked for this app session.');
+
+      const usersResponse = await fetchEchoAdminUsers(game.sessionToken, password).catch(() => null);
+      setAdminUsers(usersResponse?.users ?? []);
     } catch (error) {
       if (error instanceof EchoApiError && error.status === 404) {
         setAdminPassword(null);
         setAdminPanel(null);
-        setMessage('Railway admin panel endpoint is not available yet, so the password cannot be validated.');
+        game.setDevToolsUnlocked(false);
+        game.setShowJailDevTools(false);
+        setMessage('The admin panel is not available yet, so the password cannot be validated.');
       } else if (error instanceof EchoApiError) {
         setAdminPassword(null);
         setAdminPanel(null);
+        game.setDevToolsUnlocked(false);
+        game.setShowJailDevTools(false);
         if (error.status === 401 || error.status === 403) {
           const nextFailedCount = failedUnlockCount + 1;
 
@@ -211,12 +263,16 @@ export default function SettingsScreen() {
     setAdminPassword(null);
     setDevPasswordInput('');
     setAdminPanel(null);
+    setAdminUsers([]);
     setSelectedCategoryId(null);
     setSelectedActionId(null);
     setFieldValues({});
+    setUserSearchByField({});
     setConfirmationInput('');
     setFailedUnlockCount(0);
     setResultText(null);
+    game.setDevToolsUnlocked(false);
+    game.setShowJailDevTools(false);
     setMessage('Admin tools locked. Reloading the app also clears access.');
   };
 
@@ -252,7 +308,7 @@ export default function SettingsScreen() {
 
   const refreshProfile = async () => {
     await game.refreshRemoteProfile();
-    setMessage('Railway profile refresh requested.');
+    setMessage('Profile refresh requested.');
   };
 
   const unlinkDiscord = async () => {
@@ -269,7 +325,7 @@ export default function SettingsScreen() {
           Echo of Elsewhere
         </GameText>
         <GameText variant="display">Settings</GameText>
-        <GameText tone="muted">Device controls, bridge status, and Railway admin access.</GameText>
+        <GameText tone="muted">Device controls, bridge status, and admin access.</GameText>
       </View>
 
       <GameCard elevated>
@@ -281,12 +337,12 @@ export default function SettingsScreen() {
                 Linked{game.linkedProfile ? ` as ${game.linkedProfile.displayName}` : ''}. The app will restore this session on launch.
               </GameText>
               <GameText tone="faint">
-                Last sync: {game.lastSyncedAt ? new Date(game.lastSyncedAt).toLocaleString() : 'Waiting for Railway'}
+                Last sync: {game.lastSyncedAt ? new Date(game.lastSyncedAt).toLocaleString() : 'Waiting for the ledger'}
               </GameText>
             </>
           ) : (
             <GameText tone="muted">
-              Not linked. Use the Discord bridge link flow when you want this device connected to Railway.
+              Not linked. Use the Discord bridge link flow when you want this device connected to the shared ledger.
             </GameText>
           )}
         </View>
@@ -357,6 +413,30 @@ export default function SettingsScreen() {
       {unlocked ? (
         <GameCard elevated>
           <View style={{ gap: GameTheme.spacing.sm }}>
+            <View style={{ gap: GameTheme.spacing.xs }}>
+              <GameText variant="title">Dev Tools</GameText>
+              <GameText tone="muted">
+                Jail preview is only available after the dev password unlock. This does not put the player into Jail Mode.
+              </GameText>
+            </View>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
+              <CasinoButton
+                onPress={() => {
+                  const nextValue = !game.showJailDevTools;
+                  game.setShowJailDevTools(nextValue);
+                  setMessage(nextValue ? 'Jail dev preview enabled. The Jail tab is visible for this app session.' : 'Jail dev preview hidden.');
+                }}
+                tone={game.showJailDevTools ? 'ember' : 'echo'}>
+                {game.showJailDevTools ? 'Hide Jail' : 'Show Jail'}
+              </CasinoButton>
+              {game.showJailDevTools ? (
+                <CasinoButton onPress={() => router.push('/jail')} tone="plain">
+                  Open Jail
+                </CasinoButton>
+              ) : null}
+            </View>
+
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
               {categories.map((category) => (
                 <CasinoButton
@@ -403,6 +483,91 @@ export default function SettingsScreen() {
                       tone={fieldValues[field.id] ? 'echo' : 'plain'}>
                       {fieldValues[field.id] ? 'Enabled' : 'Disabled'}
                     </CasinoButton>
+                  ) : isUserField(field) && adminUsers.length ? (
+                    <View style={{ gap: GameTheme.spacing.sm }}>
+                      <TextInput
+                        accessibilityLabel={`${field.label} search`}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        onChangeText={(value) => setUserSearchByField((current) => ({ ...current, [field.id]: value }))}
+                        placeholder="Search Echo users"
+                        placeholderTextColor={GameTheme.colors.textFaint}
+                        style={{
+                          backgroundColor: GameTheme.colors.backgroundSoft,
+                          borderColor: GameTheme.colors.borderBright,
+                          borderRadius: GameTheme.radius.sm,
+                          borderWidth: 1,
+                          color: GameTheme.colors.text,
+                          fontSize: 16,
+                          paddingHorizontal: GameTheme.spacing.md,
+                          paddingVertical: GameTheme.spacing.sm,
+                        }}
+                        value={String(userSearchByField[field.id] ?? '')}
+                      />
+                      <TextInput
+                        accessibilityLabel={field.label}
+                        inputMode="text"
+                        onChangeText={(value) => setFieldValues((current) => ({ ...current, [field.id]: value.trim() }))}
+                        placeholder="Discord ID"
+                        placeholderTextColor={GameTheme.colors.textFaint}
+                        style={{
+                          backgroundColor: GameTheme.colors.backgroundSoft,
+                          borderColor: GameTheme.colors.border,
+                          borderRadius: GameTheme.radius.sm,
+                          borderWidth: 1,
+                          color: GameTheme.colors.text,
+                          fontSize: 16,
+                          paddingHorizontal: GameTheme.spacing.md,
+                          paddingVertical: GameTheme.spacing.sm,
+                        }}
+                        value={String(fieldValues[field.id] ?? '')}
+                      />
+                      <View style={{ gap: GameTheme.spacing.sm }}>
+                        {getFilteredAdminUsers(field).map((user) => {
+                          const discordId = getAdminUserDiscordId(user);
+                          const name = getAdminUserName(user);
+                          const avatar = getAdminUserAvatar(user);
+                          const selected = fieldValues[field.id] === discordId;
+
+                          return (
+                            <Pressable
+                              accessibilityRole="button"
+                              key={discordId || user.profileId || user.profile_id || name}
+                              onPress={() => {
+                                setFieldValues((current) => ({ ...current, [field.id]: discordId }));
+                                setUserSearchByField((current) => ({ ...current, [field.id]: name }));
+                              }}
+                              style={({ pressed }) => ({
+                                backgroundColor: GameTheme.colors.backgroundSoft,
+                                borderColor: selected ? GameTheme.colors.echo : GameTheme.colors.border,
+                                borderRadius: GameTheme.radius.sm,
+                                borderWidth: 1,
+                                opacity: pressed ? 0.76 : 1,
+                                padding: GameTheme.spacing.sm,
+                              })}>
+                              <View style={{ alignItems: 'center', flexDirection: 'row', gap: GameTheme.spacing.sm }}>
+                                {avatar ? (
+                                  <Image
+                                    accessibilityIgnoresInvertColors
+                                    contentFit="cover"
+                                    source={{ uri: avatar }}
+                                    style={{ borderRadius: 18, height: 36, width: 36 }}
+                                  />
+                                ) : null}
+                                <View style={{ minWidth: 0 }}>
+                                  <GameText tone={selected ? 'echo' : 'primary'} variant="label">
+                                    {name}
+                                  </GameText>
+                                  <GameText tone="faint" variant="caption">
+                                    {discordId || 'No Discord ID returned'}
+                                  </GameText>
+                                </View>
+                              </View>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
                   ) : field.type === 'select' && field.options?.length ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
                       {field.options.map((option) => (
@@ -445,7 +610,7 @@ export default function SettingsScreen() {
                 </View>
               ))}
 
-              {selectedAction.requiresConfirmation ? (
+              {needsSeparateConfirmation ? (
                 <View style={{ gap: GameTheme.spacing.xs }}>
                   <GameText tone="ember" variant="caption">
                     Type CONFIRM to run this action.

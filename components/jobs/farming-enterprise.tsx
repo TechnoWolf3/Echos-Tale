@@ -687,7 +687,7 @@ export function FarmingEnterprise() {
           return;
         }
 
-        setError(loadError instanceof EchoApiError ? loadError.message : 'Farming could not be loaded from Railway.');
+        setError(loadError instanceof EchoApiError ? loadError.message : 'Farming could not be loaded from the ledger.');
       } finally {
         setLoading(false);
       }
@@ -799,7 +799,7 @@ export function FarmingEnterprise() {
           }
         }
       } catch (actionError) {
-        const message = actionError instanceof EchoApiError ? actionError.message : 'Railway rejected that farming action.';
+        const message = actionError instanceof EchoApiError ? actionError.message : 'The ledger rejected that farming action.';
 
         if (panelKey) {
           setPanelMessages((current) => ({ ...current, [panelKey]: message }));
@@ -825,7 +825,7 @@ export function FarmingEnterprise() {
       <GameCard>
         <GameText variant="title">Farming</GameText>
             <GameText tone="muted">
-              Link Discord first. Farms, machines, inventory, crops, barns, timers, and money all live on Railway.
+              Link Discord first. Farms, machines, inventory, crops, barns, timers, and money all live in the shared ledger.
             </GameText>
       </GameCard>
     );
@@ -837,7 +837,7 @@ export function FarmingEnterprise() {
         <View style={{ gap: GameTheme.spacing.xs }}>
           <GameText variant="title">Farming</GameText>
           <GameText tone="muted">
-            Railway is the ledger here. The app renders the returned farm state and sends every action back to the API.
+            The farm ledger is in charge here. The app renders the returned farm state and sends every action back for settlement.
           </GameText>
         </View>
 
@@ -876,7 +876,7 @@ export function FarmingEnterprise() {
 
       {tab === 'fields' ? (
         <View style={{ gap: GameTheme.spacing.md }}>
-          {cropFields.length === 0 ? <EmptyState message="No crop fields returned by Railway yet." /> : null}
+          {cropFields.length === 0 ? <EmptyState message="No crop fields have appeared yet." /> : null}
           {cropFieldEntries.map(({ field, fieldIndex, displayIndex }) => {
             const task = getVisibleFieldTask(field, fieldIndex, startedTaskFallbacks);
             const taskLabel = task?.key ? `${titleCase(task.key)}: ${getCountdownLabel(task.endsAt, game.now) ?? 'Queued'}` : 'Idle';
@@ -909,7 +909,7 @@ export function FarmingEnterprise() {
                   <StatRow label="Cultivated" value={field.cultivated ? 'Yes' : 'No'} />
                   <StatRow label="Task" value={taskLabel} />
                   <StatRow label="Ready" value={readyLabel ?? formatDateTime(field.readyAt)} />
-                  <StatRow label="Soil" value={typeof field.soilHealth === 'number' ? `${field.soilHealth}%` : 'Railway managed'} />
+                  <StatRow label="Soil" value={typeof field.soilHealth === 'number' ? `${field.soilHealth}%` : 'Ledger managed'} />
                   <StatRow label="Rotation" value={`${titleCase(field.lastCropFamily)} x${field.sameFamilyStreak ?? 0}`} />
                   {field.fieldCondition ? <StatRow label="Condition" value={describeWeatherValue(field.fieldCondition)} /> : null}
                 </View>
@@ -1023,7 +1023,7 @@ export function FarmingEnterprise() {
 
       {tab === 'barns' ? (
         <View style={{ gap: GameTheme.spacing.md }}>
-          {barns.length === 0 ? <EmptyState message="No barns returned by Railway yet." /> : null}
+          {barns.length === 0 ? <EmptyState message="No barns have appeared yet." /> : null}
           {fields.map((field, index) =>
             field.kind === 'barn' ? (
               <GameCard key={`barn-${index}`}>
@@ -1096,7 +1096,7 @@ export function FarmingEnterprise() {
                 {weatherState.impact ? <StatRow label="Impact" value={weatherState.impact} /> : null}
               </View>
             ) : (
-              <GameText tone="muted">No weather state returned by Railway yet.</GameText>
+              <GameText tone="muted">No weather state has appeared yet.</GameText>
             )}
           </GameCard>
 
@@ -1242,7 +1242,7 @@ export function FarmingEnterprise() {
 
       {tab === 'market' ? (
         <View style={{ gap: GameTheme.spacing.md }}>
-          {(overview?.sellableInventory ?? []).length === 0 ? <EmptyState message="No sellable farm goods returned by Railway yet." /> : null}
+          {(overview?.sellableInventory ?? []).length === 0 ? <EmptyState message="No sellable farm goods have appeared yet." /> : null}
           {(overview?.sellableInventory ?? []).map((item) => (
             <GameCard key={item.itemId}>
               <View style={{ gap: GameTheme.spacing.xs }}>

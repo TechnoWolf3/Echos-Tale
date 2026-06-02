@@ -30,7 +30,7 @@ function getErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return 'The table could not reach Railway.';
+  return 'The table could not reach the ledger.';
 }
 
 function localCashout(session: HigherLowerSession | null) {
@@ -192,7 +192,7 @@ export function HigherLowerGame() {
         <GameText variant="title">Higher or Lower</GameText>
         <GameText tone="muted">
           {linked
-            ? 'Server-owned streak table. Railway owns the card, the cashout, and the consequences.'
+            ? 'Server-owned streak table. The house owns the card, the cashout, and the consequences.'
             : 'Local practice table. Link Discord to put real wallet cash on the line.'}
         </GameText>
       </View>

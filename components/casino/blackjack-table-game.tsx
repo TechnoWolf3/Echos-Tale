@@ -37,7 +37,7 @@ type BlackjackTableGameProps = {
 function getErrorMessage(error: unknown) {
   if (error instanceof EchoApiError) {
     if (error.status === 404) {
-      return 'Railway has not exposed the Blackjack multiplayer table routes yet.';
+      return 'The Blackjack multiplayer tables are not open yet.';
     }
 
     return error.message;

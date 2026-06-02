@@ -33,7 +33,7 @@ export function BullshitGame() {
         <GameText variant="title">Bullshit</GameText>
         <GameText tone="muted">
           {game.sessionToken
-            ? 'Linked play is locked until Railway owns pots and calls.'
+            ? 'Linked play is locked until the house owns pots and calls.'
             : 'A compact bot-table version: buy in, sell the lie, survive the call.'}
         </GameText>
       </View>

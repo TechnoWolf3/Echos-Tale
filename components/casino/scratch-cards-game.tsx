@@ -81,7 +81,7 @@ export function ScratchCardsGame() {
         <GameText variant="title">Scratch Cards</GameText>
         <GameText tone="muted">
           {game.sessionToken
-            ? 'Linked play is locked until Railway owns card buys and reveals.'
+            ? 'Linked play is locked until the house owns card buys and reveals.'
             : 'Buy a 3x3 card, reveal tiles, and let the cheap prophecy breathe.'}
         </GameText>
       </View>

@@ -368,7 +368,7 @@ function RemoteInsideTrack() {
         const nextRace = await fetchInsideTrackCurrent(sessionToken, signal);
         setRace(nextRace);
         setHorseNumber((current) => current ?? nextRace.myTicket?.horseNumber ?? nextRace.horses[0]?.number ?? null);
-        setMessage(nextRace.phase === 'racing' ? 'They are running. Echo has opinions on stride length.' : 'Railway is calling the race.');
+        setMessage(nextRace.phase === 'racing' ? 'They are running. Echo has opinions on stride length.' : 'The caller is lining up the race.');
 
         if (nextRace.profile) {
           applyRemoteProfile(nextRace.profile, { announce: false });
@@ -378,7 +378,7 @@ function RemoteInsideTrack() {
           return;
         }
 
-        setMessage(error instanceof EchoApiError ? error.message : 'Inside Track could not reach Railway.');
+        setMessage(error instanceof EchoApiError ? error.message : 'Inside Track could not reach the race desk.');
       }
     },
     [applyRemoteProfile, sessionToken]
@@ -623,7 +623,7 @@ function LocalInsideTrack() {
       <View style={{ gap: GameTheme.spacing.xs }}>
         <GameText variant="title">Inside Track</GameText>
         <GameText tone="muted">
-          {race.name} | {race.condition}. Practice rail. Railway owns the real tickets once Discord is linked.
+          {race.name} | {race.condition}. Practice rail. The house owns the real tickets once Discord is linked.
         </GameText>
       </View>
       <View style={{ gap: GameTheme.spacing.xs }}>

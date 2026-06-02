@@ -47,11 +47,11 @@ const wheelSegmentGradient = `conic-gradient(from -${wheelSegmentSize / 2}deg, $
 function getErrorMessage(error: unknown) {
   if (error instanceof EchoApiError) {
     if (error.status === 404) {
-      return 'Railway has not exposed this ritual endpoint yet.';
+      return 'This ritual room is not open yet.';
     }
 
     if (error.status === 409) {
-      return error.message || 'This ritual needs a dedicated Railway flow before it can settle.';
+      return error.message || 'This ritual needs a dedicated flow before it can settle.';
     }
 
     return error.message;
@@ -503,7 +503,7 @@ function EchoWheelView({
             </View>
           </Animated.View>
           <GameText tone="muted" variant="caption">
-            The spin is theatre. Railway still owns the outcome.
+            The spin is theatre. Echo still owns the outcome.
           </GameText>
         </View>
       </View>
@@ -1012,7 +1012,7 @@ export function InteractiveRitualPanel({
             </GameText>
             <GameText variant="title">{ritual.shortName ?? ritual.name}</GameText>
             <GameText tone="muted">
-              Railway owns the answer, outcome, cooldown, payout, and consequences. The app only sends choices.
+              Echo owns the answer, outcome, cooldown, payout, and consequences. The app only sends choices.
             </GameText>
           </View>
           <CasinoButton disabled={busy} onPress={onClose}>
@@ -1040,7 +1040,7 @@ export function InteractiveRitualPanel({
       ) : (
         <GameCard>
           <GameText tone="muted">
-            This will open a server-owned session. If Railway has not exposed this ritual yet, the app will show that cleanly instead of rolling anything locally.
+            This will open a server-owned session. If this ritual room is not open yet, the app will show that cleanly instead of rolling anything locally.
           </GameText>
         </GameCard>
       )}

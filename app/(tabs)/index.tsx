@@ -84,9 +84,9 @@ export default function CityScreen() {
         <GameText variant="title">Tonight&apos;s Doors</GameText>
         {!game.sessionToken ? (
           <HubCard
-            detail="Connect the phone app to the Discord bot ledger through Railway."
+            detail="Connect the phone app to the Discord bot ledger."
             href="/link-discord"
-            meta="Discord identity | shared balances | Railway API"
+            meta="Discord identity | shared balances | linked ledger"
             status={game.linkStatus === 'loading' ? 'Syncing' : 'Link'}
             title="Discord Bridge"
             tone="echo"

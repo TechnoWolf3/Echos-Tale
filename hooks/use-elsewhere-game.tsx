@@ -39,6 +39,8 @@ type ElsewhereGame = {
   heat: number;
   illusion: EchoApiProfileIllusion | null;
   isBridgeReady: boolean;
+  isDevToolsUnlocked: boolean;
+  isJailed: boolean;
   jailUntil: number | null;
   jobLevel: number;
   jobXp: number;
@@ -48,6 +50,7 @@ type ElsewhereGame = {
   now: number;
   serverBank: number;
   sessionToken: string | null;
+  showJailDevTools: boolean;
   wallet: number;
   applyRemoteProfile: (profile: EchoApiProfile, options?: { announce?: boolean }) => void;
   bribeOfficer: () => void;
@@ -58,12 +61,16 @@ type ElsewhereGame = {
   playEchoWheel: () => void;
   refreshRemoteProfile: () => Promise<void>;
   refreshRemoteProfileIfStale: (minimumAgeMs?: number) => Promise<void>;
+  releaseFromJail: (message?: string) => void;
   resolveCasinoPlay: (result: { cost: number; message: string; payout: number }) => boolean;
   resolveJobReward: (result: { cooldownId: CooldownId; cooldownSeconds: number; message: string; payout: number; tone?: EventTone; xp: number }) => void;
   runDailyRitual: () => void;
   runStoreClerk: () => void;
   runStoreRobbery: () => void;
+  syncJailUntil: (jailedUntil: string | null) => void;
+  setDevToolsUnlocked: (unlocked: boolean) => void;
   setLinkedSession: (token: string, profile: EchoApiProfile) => Promise<void>;
+  setShowJailDevTools: (show: boolean) => void;
   tick: () => void;
 };
 
@@ -141,6 +148,8 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [linkedProfile, setLinkedProfile] = useState<EchoApiProfile | null>(null);
   const [linkStatus, setLinkStatus] = useState<'local' | 'loading' | 'linked' | 'error'>('loading');
+  const [isDevToolsUnlocked, setDevToolsUnlocked] = useState(false);
+  const [showJailDevTools, setShowJailDevTools] = useState(false);
   const [isBridgeReady, setIsBridgeReady] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -181,7 +190,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       setLastSyncedAt(Date.now());
 
       if (options.announce ?? true) {
-        pushEvent(`Linked ${profile.displayName}. The app ledger now follows Railway.`, 'echo');
+        pushEvent(`Linked ${profile.displayName}. The app ledger is now synced.`, 'echo');
       }
     },
     [pushEvent]
@@ -222,11 +231,11 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
         await clearStoredSessionToken();
         setSessionToken(null);
         setLinkedProfile(null);
-        pushEvent('Railway session expired. Link Discord again when you are ready.', 'bad');
+        pushEvent('Linked session expired. Link Discord again when you are ready.', 'bad');
         return;
       }
 
-      pushEvent('Railway profile refresh failed. The local ledger is showing the last known numbers.', 'bad');
+      pushEvent('Profile refresh failed. The local ledger is showing the last known numbers.', 'bad');
     } finally {
       refreshInFlight.current = false;
     }
@@ -320,7 +329,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
 
         applyRemoteProfile(profile, { announce: false });
         await setStoredLinkedProfile(profile);
-        pushEvent(`Railway ledger restored for ${profile.displayName}.`, 'echo');
+        pushEvent(`Ledger restored for ${profile.displayName}.`, 'echo');
         setIsBridgeReady(true);
       } catch (error) {
         if (!mounted) {
@@ -332,7 +341,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
           setSessionToken(null);
           setLinkedProfile(null);
           setLinkStatus('local');
-          pushEvent('Saved Railway session expired. Link Discord again when ready.', 'bad');
+          pushEvent('Saved linked session expired. Link Discord again when ready.', 'bad');
           setIsBridgeReady(true);
           return;
         }
@@ -340,8 +349,8 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
         setLinkStatus(cachedProfile ? 'linked' : 'error');
         pushEvent(
           cachedProfile
-            ? 'Railway sync failed, but your saved Discord bridge stayed linked. Try again in a moment.'
-            : 'Saved Railway session could not sync yet. The bridge token is still stored.',
+            ? 'Ledger sync failed, but your saved Discord bridge stayed linked. Try again in a moment.'
+            : 'Saved linked session could not sync yet. The bridge token is still stored.',
           'bad'
         );
         setIsBridgeReady(true);
@@ -599,6 +608,19 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
     pushEvent('Jail timer cleared for testing the flow. Echo pretends not to notice.', 'neutral');
   }, [pushEvent]);
 
+  const releaseFromJail = useCallback(
+    (message = 'Jail session ended. Normal city access is restored.') => {
+      setJailUntil(null);
+      pushEvent(message, 'echo');
+    },
+    [pushEvent]
+  );
+
+  const syncJailUntil = useCallback((jailedUntil: string | null) => {
+    const timestamp = jailedUntil ? new Date(jailedUntil).getTime() : null;
+    setJailUntil(timestamp && Number.isFinite(timestamp) ? timestamp : null);
+  }, []);
+
   const tick = useCallback(() => {
     setNow(Date.now());
   }, []);
@@ -618,6 +640,8 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       heat,
       illusion,
       isBridgeReady,
+      isDevToolsUnlocked,
+      isJailed,
       jailUntil,
       jobLevel,
       jobXp,
@@ -628,6 +652,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       playEchoWheel,
       refreshRemoteProfile,
       refreshRemoteProfileIfStale,
+      releaseFromJail,
       resolveCasinoPlay,
       resolveJobReward,
       runDailyRitual,
@@ -635,7 +660,11 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       runStoreRobbery,
       serverBank,
       sessionToken,
+      showJailDevTools,
+      syncJailUntil,
+      setDevToolsUnlocked,
       setLinkedSession,
+      setShowJailDevTools,
       tick,
       wallet,
     }),
@@ -653,6 +682,8 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       heat,
       illusion,
       isBridgeReady,
+      isDevToolsUnlocked,
+      isJailed,
       jailUntil,
       jobLevel,
       jobXp,
@@ -663,6 +694,7 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       playEchoWheel,
       refreshRemoteProfile,
       refreshRemoteProfileIfStale,
+      releaseFromJail,
       resolveCasinoPlay,
       resolveJobReward,
       runDailyRitual,
@@ -670,7 +702,11 @@ export function ElsewhereGameProvider({ children }: { children: ReactNode }) {
       runStoreRobbery,
       serverBank,
       sessionToken,
+      showJailDevTools,
+      syncJailUntil,
+      setDevToolsUnlocked,
       setLinkedSession,
+      setShowJailDevTools,
       tick,
       wallet,
     ]

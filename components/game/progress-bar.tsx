@@ -3,10 +3,11 @@ import { View } from 'react-native';
 import { GameTheme } from '@/constants/theme';
 
 type ProgressBarProps = {
+  color?: string;
   progress: number;
 };
 
-export function ProgressBar({ progress }: ProgressBarProps) {
+export function ProgressBar({ color = GameTheme.colors.violet, progress }: ProgressBarProps) {
   return (
     <View
       style={{
@@ -17,7 +18,7 @@ export function ProgressBar({ progress }: ProgressBarProps) {
       }}>
       <View
         style={{
-          backgroundColor: GameTheme.colors.violet,
+          backgroundColor: color,
           borderRadius: GameTheme.radius.sm,
           height: '100%',
           width: `${Math.max(0, Math.min(progress, 1)) * 100}%`,

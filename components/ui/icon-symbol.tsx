@@ -18,6 +18,7 @@ const MAPPING = {
   'suit.spade.fill': 'casino',
   'paperplane.fill': 'send',
   'gearshape.fill': 'settings',
+  'lock.fill': 'lock',
   sparkles: 'auto-awesome',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',

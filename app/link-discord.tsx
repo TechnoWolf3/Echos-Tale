@@ -52,7 +52,7 @@ function getErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return 'Something went sideways while talking to Railway.';
+  return 'Something went sideways while checking the city ledger.';
 }
 
 export default function LinkDiscordScreen() {
@@ -71,7 +71,7 @@ export default function LinkDiscordScreen() {
 
   const generateCode = async () => {
     setStatus('creating');
-    setMessage('Asking Railway for a fresh link code...');
+    setMessage('Asking Echo for a fresh link code...');
 
     try {
       const response = await createDiscordLinkCode();
@@ -102,7 +102,7 @@ export default function LinkDiscordScreen() {
           applyRemoteProfile(response.profile);
         }
         setStatus('linked');
-        setMessage(`Linked as ${response.profile.displayName}. Wallet, bank, heat, and job progress pulled from Railway.`);
+        setMessage(`Linked as ${response.profile.displayName}. Wallet, bank, heat, and job progress are synced.`);
         return;
       }
 
@@ -164,7 +164,7 @@ export default function LinkDiscordScreen() {
     <GameScreen backgroundAsset="echo" backgroundOpacity={0.18}>
       <View style={{ gap: GameTheme.spacing.sm, paddingTop: GameTheme.spacing.xl }}>
         <GameText tone="faint" variant="label">
-          Railway bridge
+          Discord bridge
         </GameText>
         <GameText variant="display">Link Discord</GameText>
         <GameText tone="muted">
@@ -176,7 +176,7 @@ export default function LinkDiscordScreen() {
         <View style={{ gap: GameTheme.spacing.xs }}>
           <GameText variant="title">Bridge Status</GameText>
           <GameText tone={isEchoApiConfigured ? 'echo' : 'ember'}>
-            {isEchoApiConfigured ? `Railway API: ${echoApiBaseUrl}` : 'Railway API URL is not configured yet.'}
+            {isEchoApiConfigured ? `Ledger endpoint: ${echoApiBaseUrl}` : 'Ledger endpoint is not configured yet.'}
           </GameText>
           {linkedProfile ? (
             <GameText tone="echo">
@@ -220,7 +220,7 @@ export default function LinkDiscordScreen() {
           />
           <LinkButton
             disabled={!sessionToken}
-            label="Refresh Railway Profile"
+            label="Refresh Profile"
             onPress={refreshRemoteProfile}
           />
           <LinkButton
@@ -234,7 +234,7 @@ export default function LinkDiscordScreen() {
       <GameCard>
         <GameText variant="title">Discord Bot Endpoint</GameText>
         <GameText tone="muted">
-          The Discord bot should accept /link CODE, send the Discord user ID plus that code to the Railway API, and let the API attach
+          The Discord bot should accept /link CODE, send the Discord user ID plus that code to the shared ledger, and let the server attach
           the app session to the same profile.
         </GameText>
         <GameText selectable tone="faint" variant="caption">

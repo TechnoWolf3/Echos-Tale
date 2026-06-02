@@ -41,7 +41,7 @@ export function KenoGame() {
         <GameText variant="title">Keno</GameText>
         <GameText tone="muted">
           {game.sessionToken
-            ? 'Linked play is locked until Railway owns Keno draws.'
+            ? 'Linked play is locked until the house owns Keno draws.'
             : 'A fast draw version for now. The live table can grow from this.'}
         </GameText>
       </View>

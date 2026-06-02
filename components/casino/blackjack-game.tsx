@@ -49,7 +49,7 @@ function getErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return 'The dealer could not reach Railway.';
+  return 'The dealer could not reach the table ledger.';
 }
 
 export function BlackjackGame() {
@@ -218,10 +218,10 @@ export function BlackjackGame() {
       ? resolved
         ? `Dealer shows ${dealerValue}. ${message}`
         : linked
-          ? 'Railway has the shoe. The app is only watching the table now.'
+          ? 'The house has the shoe. The app is only watching the table now.'
           : 'Dealer waits behind the felt. One card face down, one eyebrow raised.'
       : linked
-        ? 'Linked table ready. Railway will own the deck, stake, and payout.'
+        ? 'Linked table ready. The house will own the deck, stake, and payout.'
         : message;
 
   return (
@@ -230,7 +230,7 @@ export function BlackjackGame() {
         <GameText variant="title">Blackjack</GameText>
         <GameText tone="muted">
           {linked
-            ? 'Server-owned table. Railway owns the deck, wallet debit, and payout.'
+            ? 'Server-owned table. The house owns the deck, wallet debit, and payout.'
             : 'Local practice table. Link Discord to play against the shared ledger.'}
         </GameText>
       </View>
@@ -272,7 +272,7 @@ export function BlackjackGame() {
             </GameText>
           </View>
           <View style={{ flex: 1 }}>
-            <GameText variant="label">{linked ? 'Railway Dealer' : 'House Dealer'}</GameText>
+            <GameText variant="label">{linked ? 'Ledger Dealer' : 'House Dealer'}</GameText>
             <GameText tone="muted">{dealerLine}</GameText>
           </View>
         </View>

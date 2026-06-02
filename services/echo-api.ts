@@ -202,6 +202,104 @@ export type EchoApiHigherLowerTableResponse = {
   table?: EchoApiHigherLowerTable;
 };
 
+export type EchoApiRouletteBetType = 'black' | 'even' | 'high' | 'low' | 'number' | 'odd' | 'red';
+export type EchoApiRouletteColor = 'black' | 'green' | 'red';
+export type EchoApiRouletteTableStatus = 'closed' | 'expired' | 'lobby' | 'result' | 'spinning' | string;
+export type EchoApiRouletteAllowedAction = 'bet' | 'clear_bet' | 'end' | 'join' | 'last_bet' | 'leave' | 'spin' | string;
+
+export type EchoApiRouletteBet = {
+  betAmount: number;
+  betType: EchoApiRouletteBetType;
+  betValue?: number | null;
+};
+
+export type EchoApiRoulettePlayerResult = {
+  multiplier?: number;
+  payout?: number;
+  profit?: number;
+  won?: boolean;
+};
+
+export type EchoApiRouletteTablePlayer = {
+  betAmount?: number | null;
+  betType?: EchoApiRouletteBetType | null;
+  betValue?: number | null;
+  displayName?: string;
+  feeAmount?: number;
+  lastBet?: EchoApiRouletteBet | null;
+  paid?: boolean;
+  payout?: number;
+  profileId?: string;
+  result?: EchoApiRoulettePlayerResult | null;
+  seatIndex?: number;
+  status?: string;
+  totalCharge?: number;
+  userId?: string;
+};
+
+export type EchoApiRouletteSpin = {
+  animationSeed?: string;
+  color?: EchoApiRouletteColor;
+  colour?: EchoApiRouletteColor;
+  durationMs?: number;
+  pocket: number;
+  settledAt?: string;
+  spinId?: string;
+  startedAt?: string;
+};
+
+export type EchoApiRouletteResultEntry = EchoApiRoulettePlayerResult & {
+  betAmount?: number;
+  betType?: EchoApiRouletteBetType | null;
+  betValue?: number | null;
+  displayName?: string;
+  profileId?: string;
+  userId?: string;
+};
+
+export type EchoApiRouletteLastResult = {
+  color?: EchoApiRouletteColor;
+  colour?: EchoApiRouletteColor;
+  notes?: string[];
+  pocket: number;
+  results?: EchoApiRouletteResultEntry[];
+};
+
+export type EchoApiRouletteTable = {
+  allowedActions?: EchoApiRouletteAllowedAction[];
+  gameType?: 'roulette';
+  hostDisplayName?: string;
+  hostProfileId?: string;
+  hostUserId?: string;
+  id?: string;
+  lastResult?: EchoApiRouletteLastResult | null;
+  maxBet?: number;
+  maxPlayers?: number;
+  minBet?: number;
+  players: EchoApiRouletteTablePlayer[];
+  profile?: EchoApiProfile;
+  readyToSpin?: boolean;
+  spin?: EchoApiRouletteSpin | null;
+  status: EchoApiRouletteTableStatus;
+  tableId: string;
+  wheel?: {
+    hasDoubleZero?: boolean;
+    numbers?: number[];
+    redNumbers?: number[];
+    type?: 'european' | string;
+  };
+};
+
+export type EchoApiRouletteTablesResponse = {
+  tables: EchoApiRouletteTable[];
+};
+
+export type EchoApiRouletteTableResponse = {
+  profile?: EchoApiProfile;
+  status?: string;
+  table?: EchoApiRouletteTable;
+} & Partial<EchoApiRouletteTable>;
+
 export type EchoApiInsideTrackPhase = 'betting' | 'racing' | 'results';
 
 export type EchoApiInsideTrackBetType = 'place' | 'show' | 'win';
@@ -681,6 +779,103 @@ export type EchoApiFarmingActionResponse = EchoApiFarmingOverview & {
 
 export type EchoApiFarmingConfig = Record<string, unknown>;
 
+export type EchoApiJailSession = {
+  bailCost?: number;
+  createdAt?: string;
+  effects?: Record<string, unknown>;
+  escapeAttempts?: number;
+  guildId?: string;
+  items?: Record<string, number>;
+  jailedUntil: string;
+  maxReducibleRemaining?: number;
+  originalSentenceSeconds?: number;
+  prisonMoney?: number;
+  reductionCapSeconds?: number;
+  remainingSeconds?: number;
+  sentenceReducedSeconds?: number;
+  userId?: string;
+  workCount?: number;
+};
+
+export type EchoApiJailResponse = {
+  jailed: boolean;
+  message?: string;
+  profile?: Partial<EchoApiProfile> | EchoApiProfile;
+  session: EchoApiJailSession | null;
+};
+
+export type EchoApiJailActionResponse = {
+  message: string;
+  profile?: Partial<EchoApiProfile> | EchoApiProfile;
+  result?: Record<string, unknown>;
+  session: EchoApiJailSession | null;
+  status: string;
+};
+
+export type EchoApiJailWorkTaskId = 'cells' | 'kitchen' | 'laundry' | 'supply' | 'workshop' | 'yard';
+export type EchoApiJailEscapeRoute = 'quiet' | 'quick' | 'reckless';
+
+export type EchoApiJailWorkChoice = {
+  id: string;
+  label: string;
+};
+
+export type EchoApiJailWorkSession = {
+  choices?: EchoApiJailWorkChoice[];
+  expiresAt?: string | null;
+  id: string;
+  prompt?: string;
+  taskId: EchoApiJailWorkTaskId | string;
+  title?: string;
+};
+
+export type EchoApiJailWorkStartResponse = {
+  message?: string;
+  result?: Record<string, unknown>;
+  session?: EchoApiJailWorkSession | EchoApiJailSession | null;
+  status?: string;
+  taskId?: EchoApiJailWorkTaskId | string;
+  profile?: Partial<EchoApiProfile> | EchoApiProfile;
+};
+
+export type EchoApiJailShopItem = {
+  affordable?: boolean;
+  description?: string;
+  disabledReason?: string | null;
+  id: string;
+  name: string;
+  owned?: boolean;
+  passive?: boolean;
+  price?: number;
+  type?: string;
+  usable?: boolean;
+  useAction?: string | null;
+};
+
+export type EchoApiJailShopResponse = {
+  effects?: Record<string, unknown>;
+  gambling?: EchoApiJailGambleAvailability;
+  items: EchoApiJailShopItem[];
+  ownedItems?: Record<string, number>;
+  prisonMoney?: number;
+  session?: EchoApiJailSession | null;
+};
+
+export type EchoApiJailGambleAvailability = {
+  available: boolean;
+  enabledBy?: {
+    displayName?: string;
+    userId?: string;
+  } | null;
+  enabledByDisplayName?: string;
+  enabledByUserId?: string;
+  games?: { id: string; name: string }[];
+  maxBet?: number;
+  minBet?: number;
+  npcs?: { displayName?: string; id: string; name?: string }[];
+  reason?: string | null;
+};
+
 export type DiscordLinkCodeResponse = {
   expiresAt: string;
   linkCode: string;
@@ -757,7 +952,7 @@ async function readError(response: Response) {
 
 export async function echoApiRequest<T>(path: string, options: ApiOptions = {}): Promise<T> {
   if (!isEchoApiConfigured) {
-    throw new EchoApiError(echoApiConfigError ?? 'Railway API URL is not configured yet.', 0, 'API_NOT_CONFIGURED');
+    throw new EchoApiError(echoApiConfigError ?? 'Ledger endpoint is not configured yet.', 0, 'API_NOT_CONFIGURED');
   }
 
   const hasBody = options.body !== undefined;
@@ -826,6 +1021,10 @@ function blackjackTablePaths(suffix = '') {
   ];
 }
 
+function rouletteTablePaths(suffix = '') {
+  return [`/v1/casino/roulette/tables${suffix}`];
+}
+
 function ritualStartPaths(ritualId: string) {
   const ids = Array.from(new Set([ritualId, ritualId.replace(/_/g, '-')]));
 
@@ -855,6 +1054,90 @@ export function fetchEchoProfile(sessionToken: string, signal?: AbortSignal) {
   });
 }
 
+export function fetchJailSession(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiJailResponse>('/v1/jail', {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function payJailBail(sessionToken: string) {
+  return echoApiRequest<EchoApiJailActionResponse>('/v1/jail/bail', {
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function startJailWork(sessionToken: string, taskId: EchoApiJailWorkTaskId) {
+  return echoApiRequest<EchoApiJailWorkStartResponse>('/v1/jail/work/start', {
+    body: { taskId },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function runJailWork(sessionToken: string, taskId: EchoApiJailWorkTaskId, choice?: string) {
+  return echoApiRequest<EchoApiJailActionResponse>('/v1/jail/work', {
+    body: choice ? { choice, taskId } : { taskId },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function sendJailWorkSessionAction(sessionToken: string, sessionId: string, choiceId: string) {
+  return echoApiRequest<EchoApiJailActionResponse>(`/v1/jail/work/sessions/${encodeURIComponent(sessionId)}/action`, {
+    body: { choiceId },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function buyJailShopItem(sessionToken: string, itemId: string) {
+  return echoApiRequest<EchoApiJailActionResponse>('/v1/jail/shop/buy', {
+    body: { itemId },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchJailShop(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiJailShopResponse>('/v1/jail/shop', {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function activateJailShopItem(sessionToken: string, itemId: string) {
+  return echoApiRequest<EchoApiJailActionResponse>('/v1/jail/shop/use', {
+    body: { itemId },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function attemptJailEscape(sessionToken: string, route: EchoApiJailEscapeRoute) {
+  return echoApiRequest<EchoApiJailActionResponse>('/v1/jail/escape', {
+    body: { route },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function gambleInJail(sessionToken: string, body: { bet: number; game: string; npcId: string }) {
+  return echoApiRequest<EchoApiJailActionResponse>('/v1/jail/gamble', {
+    body,
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchJailGamble(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiJailGambleAvailability>('/v1/jail/gamble', {
+    signal,
+    token: sessionToken,
+  });
+}
+
 export type EchoApiAdminPanelField = {
   defaultValue?: string | number | boolean | null;
   helpText?: string;
@@ -863,7 +1146,7 @@ export type EchoApiAdminPanelField = {
   options?: { label: string; value: string }[];
   placeholder?: string;
   required?: boolean;
-  type?: 'boolean' | 'number' | 'select' | 'text' | 'textarea';
+  type?: 'boolean' | 'number' | 'select' | 'text' | 'textarea' | 'user';
 };
 
 export type EchoApiAdminPanelAction = {
@@ -885,6 +1168,24 @@ export type EchoApiAdminPanelCategory = {
 export type EchoApiAdminPanel = {
   categories: EchoApiAdminPanelCategory[];
   message?: string;
+};
+
+export type EchoApiAdminUser = {
+  accountNumber?: string | null;
+  account_number?: string | null;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
+  discordUserId?: string | null;
+  discord_user_id?: string | null;
+  displayName?: string | null;
+  display_name?: string | null;
+  profileId?: string | null;
+  profile_id?: string | null;
+  username?: string | null;
+};
+
+export type EchoApiAdminUsersResponse = {
+  users: EchoApiAdminUser[];
 };
 
 export type EchoApiAdminPanelActionResponse = {
@@ -922,6 +1223,29 @@ export async function fetchEchoAdminPanel(sessionToken: string, devPassword: str
     }
 
     return echoApiRequest<EchoApiAdminPanel>('/v1/adminpanel', {
+      body: {
+        devPassword,
+      },
+      method: 'POST',
+      signal,
+      token: sessionToken,
+    });
+  }
+}
+
+export async function fetchEchoAdminUsers(sessionToken: string, devPassword: string, signal?: AbortSignal) {
+  try {
+    return await echoApiRequest<EchoApiAdminUsersResponse>('/v1/adminpanel/users', {
+      headers: adminPanelHeaders(devPassword),
+      signal,
+      token: sessionToken,
+    });
+  } catch (error) {
+    if (!(error instanceof EchoApiError) || error.code !== 'NETWORK_ERROR') {
+      throw error;
+    }
+
+    return echoApiRequest<EchoApiAdminUsersResponse>('/v1/adminpanel/users', {
       body: {
         devPassword,
       },
@@ -1204,6 +1528,106 @@ export function doubleBlackjackTable(sessionToken: string, tableId: string) {
 export function splitBlackjackTable(sessionToken: string, tableId: string) {
   return echoApiRequestAny<EchoApiBlackjackTable | EchoApiBlackjackTableResponse>(
     blackjackTablePaths(`/${encodeURIComponent(tableId)}/split`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function fetchRouletteTables(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequestAny<EchoApiRouletteTablesResponse | EchoApiRouletteTable[]>(rouletteTablePaths(), {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function createRouletteTable(sessionToken: string) {
+  return echoApiRequestAny<EchoApiRouletteTable | EchoApiRouletteTableResponse>(rouletteTablePaths(), {
+    body: { announceToDiscord: true, source: 'app' },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchRouletteTable(sessionToken: string, tableId: string, signal?: AbortSignal) {
+  return echoApiRequestAny<EchoApiRouletteTable | EchoApiRouletteTableResponse>(
+    rouletteTablePaths(`/${encodeURIComponent(tableId)}`),
+    {
+      signal,
+      token: sessionToken,
+    }
+  );
+}
+
+export function joinRouletteTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiRouletteTable | EchoApiRouletteTableResponse>(
+    rouletteTablePaths(`/${encodeURIComponent(tableId)}/join`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function leaveRouletteTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiRouletteTable | EchoApiRouletteTableResponse>(
+    rouletteTablePaths(`/${encodeURIComponent(tableId)}/leave`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function betRouletteTable(
+  sessionToken: string,
+  tableId: string,
+  bet: { amount: number; betType: EchoApiRouletteBetType; betValue?: number | null }
+) {
+  return echoApiRequestAny<EchoApiRouletteTable | EchoApiRouletteTableResponse>(
+    rouletteTablePaths(`/${encodeURIComponent(tableId)}/bet`),
+    {
+      body: bet.betType === 'number' ? bet : { amount: bet.amount, betType: bet.betType },
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function repeatRouletteTableLastBet(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiRouletteTable | EchoApiRouletteTableResponse>(
+    rouletteTablePaths(`/${encodeURIComponent(tableId)}/last-bet`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function clearRouletteTableBet(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiRouletteTable | EchoApiRouletteTableResponse>(
+    rouletteTablePaths(`/${encodeURIComponent(tableId)}/clear-bet`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function spinRouletteTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiRouletteTable | EchoApiRouletteTableResponse>(
+    rouletteTablePaths(`/${encodeURIComponent(tableId)}/spin`),
+    {
+      method: 'POST',
+      token: sessionToken,
+    }
+  );
+}
+
+export function endRouletteTable(sessionToken: string, tableId: string) {
+  return echoApiRequestAny<EchoApiRouletteTable | EchoApiRouletteTableResponse>(
+    rouletteTablePaths(`/${encodeURIComponent(tableId)}/end`),
     {
       method: 'POST',
       token: sessionToken,

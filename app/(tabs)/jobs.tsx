@@ -185,7 +185,7 @@ export default function JobsScreen() {
           <GameCard>
             <GameText variant="title">9-5 Rules</GameText>
             <GameText tone="muted">
-              Legal work pays Wallet cash, adds job XP, records a transaction, respects cooldowns, and resolves server-side once the Railway API exists.
+              Legal work pays Wallet cash, adds job XP, records a transaction, respects cooldowns, and resolves through the shared ledger once connected.
             </GameText>
           </GameCard>
         </View>

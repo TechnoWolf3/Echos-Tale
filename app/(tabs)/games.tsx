@@ -47,7 +47,7 @@ export default function GamesScreen() {
       {!activeHub ? (
         <View style={{ gap: GameTheme.spacing.md }}>
           <HubCard
-            detail="Low lights, sharp tables, bad odds, and Railway-owned money where the house has signed."
+            detail="Low lights, sharp tables, bad odds, and house-held money where the ledger has signed."
             meta="Blackjack, Higher or Lower, Roulette, Scratch Cards, Keno, Inside Track"
             onPress={() => setActiveHub('casino')}
             status="Enter"
@@ -96,7 +96,7 @@ export default function GamesScreen() {
             <GameCard>
               <GameText variant="title">Linked Ledger Guard</GameText>
               <GameText tone="muted">
-                Live casino tables use Railway as the shared source of truth. App-started tables can announce into Discord for join-in play.
+                Live casino tables use the shared ledger as the source of truth. App-started tables can announce into Discord for join-in play.
               </GameText>
             </GameCard>
           ) : null}

@@ -35,13 +35,13 @@ type HigherLowerTableGameProps = {
 function getErrorMessage(error: unknown) {
   if (error instanceof EchoApiError) {
     if (error.status === 404) {
-      return 'Railway has not exposed the Higher or Lower multiplayer table routes yet.';
+      return 'The Higher or Lower multiplayer tables are not open yet.';
     }
 
     return error.message;
   }
 
-  return 'Railway did not answer the table.';
+  return 'The table did not answer.';
 }
 
 function getTable(payload: TablePayload) {
@@ -464,7 +464,7 @@ export function HigherLowerTableGame({ autoCreate }: HigherLowerTableGameProps) 
                   }}>
                   <View style={{ gap: GameTheme.spacing.xs }}>
                     <GameText variant="label">Buy-In</GameText>
-                    <GameText tone="muted">Set your stake before the rail opens. Changes go through Railway.</GameText>
+                    <GameText tone="muted">Set your stake before the rail opens. Changes go through the house ledger.</GameText>
                   </View>
                   <BetPicker amount={bet} disabled={!!busyAction} onChange={setBet} />
                   <CasinoButton disabled={!!busyAction} onPress={placeBet} tone="ember">

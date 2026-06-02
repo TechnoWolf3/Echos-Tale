@@ -363,7 +363,7 @@ export default function BankScreen() {
         <GameCard elevated>
           <GameText variant="title">Link Required</GameText>
           <GameText tone="muted">
-            Bank actions need the Railway ledger. Link Discord first so the app can read your existing account number and balances.
+            Bank actions need the shared ledger. Link Discord first so the app can read your existing account number and balances.
           </GameText>
         </GameCard>
       ) : null}
@@ -390,7 +390,7 @@ export default function BankScreen() {
             {accountNumber ?? 'Not Exposed Yet'}
           </GameText>
           <GameText tone="faint" variant="caption">
-            Existing Discord account numbers are displayed as-is. If this is blank, Railway needs to expose the stored account_number field.
+            Existing Discord account numbers are displayed as-is. If this is blank, the ledger needs to expose the stored account_number field.
           </GameText>
         </View>
         {jailed ? (
@@ -493,7 +493,7 @@ export default function BankScreen() {
           ))}
           {!loan && !(loans?.offers ?? []).length ? (
             <GameCard>
-              <GameText tone="muted">Loan offers have not been returned by Railway yet.</GameText>
+              <GameText tone="muted">Loan offers have not appeared yet.</GameText>
             </GameCard>
           ) : null}
         </View>
