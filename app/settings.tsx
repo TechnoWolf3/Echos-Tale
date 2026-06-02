@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
@@ -26,6 +26,7 @@ import {
 
 type FieldValues = Record<string, string | number | boolean>;
 
+const devAccessRevealTapTarget = 7;
 const hiddenAdminCategoryIds = new Set(['boards', 'patchboard']);
 const hiddenAdminActionPrefixes = ['boards:', 'patchboard:'];
 
@@ -116,6 +117,8 @@ export default function SettingsScreen() {
   const [devPasswordInput, setDevPasswordInput] = useState('');
   const [adminPassword, setAdminPassword] = useState<string | null>(null);
   const [adminPanel, setAdminPanel] = useState<EchoApiAdminPanel | null>(null);
+  const [devAccessVisible, setDevAccessVisible] = useState(false);
+  const devAccessRevealTaps = useRef(0);
   const [adminUsers, setAdminUsers] = useState<EchoApiAdminUser[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
@@ -268,6 +271,20 @@ export default function SettingsScreen() {
     }
   };
 
+  const revealDevAccess = () => {
+    if (devAccessVisible || unlocked) {
+      return;
+    }
+
+    devAccessRevealTaps.current += 1;
+
+    if (devAccessRevealTaps.current >= devAccessRevealTapTarget) {
+      devAccessRevealTaps.current = 0;
+      setDevAccessVisible(true);
+      setMessage('Backend dev access revealed for this app session.');
+    }
+  };
+
   const lockAdminPanel = () => {
     setAdminPassword(null);
     setDevPasswordInput('');
@@ -333,7 +350,13 @@ export default function SettingsScreen() {
         <GameText tone="faint" variant="label">
           Echo of Elsewhere
         </GameText>
-        <GameText variant="display">Settings</GameText>
+        <Pressable accessibilityLabel="Settings" accessibilityRole="button" hitSlop={12} onPress={revealDevAccess}>
+          {({ pressed }) => (
+            <GameText style={{ opacity: pressed ? 0.76 : 1 }} variant="display">
+              Settings
+            </GameText>
+          )}
+        </Pressable>
         <GameText tone="muted">Device controls, bridge status, and admin access.</GameText>
       </View>
 
@@ -369,55 +392,57 @@ export default function SettingsScreen() {
         </View>
       </GameCard>
 
-      <GameCard>
-        <View style={{ gap: GameTheme.spacing.xs }}>
-          <GameText variant="title">Backend Dev Access</GameText>
-          <GameText tone="muted">
-            Enter the dev password to unlock admin tools for this app session only. Reloading the app clears access.
-          </GameText>
-          <GameText tone={isEchoApiConfigured ? 'faint' : 'ember'} variant="caption">
-            {isEchoApiConfigured ? `API: ${echoApiBaseUrl}` : echoApiConfigError}
-          </GameText>
-        </View>
-
-        {!unlocked ? (
-          <>
-            <TextInput
-              accessibilityLabel="Backend dev password"
-              autoCapitalize="none"
-              autoCorrect={false}
-              onChangeText={setDevPasswordInput}
-              onSubmitEditing={() => void unlockAdminPanel()}
-              placeholder="Dev password"
-              placeholderTextColor={GameTheme.colors.textFaint}
-              secureTextEntry
-              style={{
-                backgroundColor: GameTheme.colors.backgroundSoft,
-                borderColor: GameTheme.colors.borderBright,
-                borderRadius: GameTheme.radius.sm,
-                borderWidth: 1,
-                color: GameTheme.colors.text,
-                fontSize: 16,
-                paddingHorizontal: GameTheme.spacing.md,
-                paddingVertical: GameTheme.spacing.sm,
-              }}
-              value={devPasswordInput}
-            />
-            <CasinoButton disabled={devBusy || !devPasswordInput.trim()} onPress={() => void unlockAdminPanel()} tone="echo">
-              Unlock Tools
-            </CasinoButton>
-          </>
-        ) : (
-          <>
-            <GameText tone="echo" variant="caption">
-              Unlocked for this app session.
+      {devAccessVisible || unlocked ? (
+        <GameCard>
+          <View style={{ gap: GameTheme.spacing.xs }}>
+            <GameText variant="title">Backend Dev Access</GameText>
+            <GameText tone="muted">
+              Enter the dev password to unlock admin tools for this app session only. Reloading the app clears access.
             </GameText>
-            <CasinoButton onPress={lockAdminPanel} tone="plain">
-              Lock Tools
-            </CasinoButton>
-          </>
-        )}
-      </GameCard>
+            <GameText tone={isEchoApiConfigured ? 'faint' : 'ember'} variant="caption">
+              {isEchoApiConfigured ? `API: ${echoApiBaseUrl}` : echoApiConfigError}
+            </GameText>
+          </View>
+
+          {!unlocked ? (
+            <>
+              <TextInput
+                accessibilityLabel="Backend dev password"
+                autoCapitalize="none"
+                autoCorrect={false}
+                onChangeText={setDevPasswordInput}
+                onSubmitEditing={() => void unlockAdminPanel()}
+                placeholder="Dev password"
+                placeholderTextColor={GameTheme.colors.textFaint}
+                secureTextEntry
+                style={{
+                  backgroundColor: GameTheme.colors.backgroundSoft,
+                  borderColor: GameTheme.colors.borderBright,
+                  borderRadius: GameTheme.radius.sm,
+                  borderWidth: 1,
+                  color: GameTheme.colors.text,
+                  fontSize: 16,
+                  paddingHorizontal: GameTheme.spacing.md,
+                  paddingVertical: GameTheme.spacing.sm,
+                }}
+                value={devPasswordInput}
+              />
+              <CasinoButton disabled={devBusy || !devPasswordInput.trim()} onPress={() => void unlockAdminPanel()} tone="echo">
+                Unlock Tools
+              </CasinoButton>
+            </>
+          ) : (
+            <>
+              <GameText tone="echo" variant="caption">
+                Unlocked for this app session.
+              </GameText>
+              <CasinoButton onPress={lockAdminPanel} tone="plain">
+                Lock Tools
+              </CasinoButton>
+            </>
+          )}
+        </GameCard>
+      ) : null}
 
       {unlocked ? (
         <GameCard elevated>

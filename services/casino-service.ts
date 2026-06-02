@@ -396,11 +396,11 @@ const kenoPayouts: Record<number, Record<number, number>> = {
   10: { 4: 1, 5: 5, 6: 20, 7: 80, 8: 400, 9: 2500, 10: 25000 },
 };
 
-export function playKeno(amount: number, type: KenoBetType): KenoResult {
+export function playKeno(amount: number, type: KenoBetType, markedTicket?: number[]): KenoResult {
   const drawn = sampleNumbers(20, 80);
   const heads = drawn.filter((number) => number <= 40).length;
   const tails = 20 - heads;
-  const ticket = type === 'quickpick' ? sampleNumbers(10, 80) : [];
+  const ticket = type === 'quickpick' ? [...(markedTicket?.length ? markedTicket : sampleNumbers(10, 80))].sort((a, b) => a - b) : [];
   const hits = ticket.filter((number) => drawn.includes(number)).length;
   const htdWon =
     (type === 'heads' && heads >= 11) ||

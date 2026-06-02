@@ -144,6 +144,24 @@ export type EchoApiHigherLowerRound = {
   streak: number;
 };
 
+export type EchoApiKenoBetType = 'draw' | 'heads' | 'quickpick' | 'tails';
+
+export type EchoApiKenoResult = {
+  amount?: number;
+  drawn: number[];
+  heads: number;
+  hits: number;
+  message: string;
+  multiplier?: number;
+  payout: number;
+  profile?: EchoApiProfile;
+  status?: string;
+  tails: number;
+  ticket: number[];
+  type?: EchoApiKenoBetType;
+  won: boolean;
+};
+
 export type EchoApiHigherLowerTableStatus = 'closed' | 'expired' | 'lobby' | 'playing' | 'resolved';
 
 export type EchoApiHigherLowerTablePlayer = {
@@ -1308,6 +1326,17 @@ export function standBlackjackRound(sessionToken: string, gameId: string) {
 export function startHigherLowerRound(sessionToken: string, bet: number) {
   return echoApiRequest<EchoApiHigherLowerRound>('/v1/casino/higher-lower/start', {
     body: { bet },
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function playKenoDraw(
+  sessionToken: string,
+  body: { amount: number; ticket?: number[]; type: EchoApiKenoBetType }
+) {
+  return echoApiRequest<EchoApiKenoResult>('/v1/casino/keno/draw', {
+    body,
     method: 'POST',
     token: sessionToken,
   });
