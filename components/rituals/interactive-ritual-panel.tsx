@@ -44,6 +44,10 @@ const wheelSegmentGradient = `conic-gradient(from -${wheelSegmentSize / 2}deg, $
   .map((slice, index) => `${slice.color} ${index * wheelSegmentSize}deg ${(index + 1) * wheelSegmentSize}deg`)
   .join(', ')})`;
 
+function normalizeWheelOutcome(value: string | null) {
+  return value?.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') ?? null;
+}
+
 function getErrorMessage(error: unknown) {
   if (error instanceof EchoApiError) {
     if (error.status === 404) {
@@ -258,9 +262,18 @@ function EchoWheelView({
   session: EchoApiRitualSession | null;
 }) {
   const spinValue = useRef(new Animated.Value(0)).current;
+  const [isSpinning, setIsSpinning] = useState(false);
   const [spinIndex, setSpinIndex] = useState(0);
   const result = session?.result && typeof session.result === 'object' ? session.result : session?.result_json;
   const outcomeId = typeof result?.outcomeId === 'string' ? result.outcomeId : typeof result?.id === 'string' ? result.id : null;
+  const outcomeText =
+    typeof session?.result === 'string'
+      ? session.result
+      : typeof result?.body === 'string'
+        ? result.body
+        : typeof session?.message === 'string'
+          ? session.message
+          : null;
   const outcomeLabel =
     typeof result?.label === 'string'
       ? result.label
@@ -270,12 +283,41 @@ function EchoWheelView({
           ? outcomeId.replace(/_/g, ' ')
           : null;
   const targetIndex = useMemo(() => {
-    if (!outcomeId) {
+    const normalizedId = normalizeWheelOutcome(outcomeId);
+    const normalizedLabel = normalizeWheelOutcome(outcomeLabel);
+    const normalizedText = normalizeWheelOutcome(stripDiscordFormatting(outcomeText) ?? outcomeText);
+
+    if (!normalizedId && !normalizedLabel && !normalizedText) {
       return -1;
     }
 
-    return wheelSlices.findIndex((slice) => slice.ids.includes(outcomeId));
-  }, [outcomeId]);
+    const exactIdIndex = wheelSlices.findIndex((slice) => slice.ids.some((id) => normalizeWheelOutcome(id) === normalizedId));
+
+    if (exactIdIndex >= 0) {
+      return exactIdIndex;
+    }
+
+    const exactLabelIndex = wheelSlices.findIndex((slice) => normalizeWheelOutcome(slice.label) === normalizedLabel);
+
+    if (exactLabelIndex >= 0) {
+      return exactLabelIndex;
+    }
+
+    return wheelSlices.findIndex((slice) => {
+      const normalizedSliceLabel = normalizeWheelOutcome(slice.label);
+
+      return Boolean(
+        (normalizedId && normalizedSliceLabel && normalizedId.includes(normalizedSliceLabel)) ||
+          (normalizedLabel && normalizedSliceLabel && normalizedLabel.includes(normalizedSliceLabel)) ||
+          (normalizedText && normalizedSliceLabel && normalizedText.includes(normalizedSliceLabel)) ||
+          slice.ids.some((id) => {
+            const normalizedSliceId = normalizeWheelOutcome(id);
+
+            return Boolean(normalizedText && normalizedSliceId && normalizedText.includes(normalizedSliceId));
+          })
+      );
+    });
+  }, [outcomeId, outcomeLabel, outcomeText]);
   const highlightedIndex = targetIndex >= 0 ? targetIndex : spinIndex % wheelSlices.length;
   const rotation = spinValue.interpolate({
     inputRange: [0, 18],
@@ -292,18 +334,26 @@ function EchoWheelView({
     const toValue = turns + desiredAngle / 360;
 
     spinValue.setValue(0);
+    if (!isSpinning) {
+      spinValue.setValue(toValue);
+      setSpinIndex(targetIndex);
+      return;
+    }
+
     Animated.timing(spinValue, {
       duration: 6400,
       easing: Easing.out(Easing.poly(4)),
       toValue,
       useNativeDriver: true,
     }).start(() => {
+      setIsSpinning(false);
       setSpinIndex(targetIndex);
     });
-  }, [spinValue, targetIndex]);
+  }, [isSpinning, spinValue, targetIndex]);
 
   const spin = () => {
     const nextSpin = spinIndex + 1;
+    setIsSpinning(true);
     setSpinIndex(nextSpin);
     spinValue.setValue(0);
     Animated.timing(spinValue, {
@@ -332,8 +382,8 @@ function EchoWheelView({
         <View style={{ alignItems: 'center', gap: GameTheme.spacing.sm }}>
           <View
             style={{
-              borderBottomColor: GameTheme.colors.ember,
-              borderBottomWidth: 18,
+              borderTopColor: GameTheme.colors.ember,
+              borderTopWidth: 18,
               borderLeftColor: 'transparent',
               borderLeftWidth: 12,
               borderRightColor: 'transparent',

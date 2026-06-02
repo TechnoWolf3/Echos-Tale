@@ -97,6 +97,15 @@ function isUserField(field: EchoApiAdminPanelField) {
   return field.type === 'user' || field.id === 'user_id' || field.id === 'discord_user_id';
 }
 
+function isCooldownField(field: EchoApiAdminPanelField, action: EchoApiAdminPanelAction | null) {
+  const fieldId = field.id.toLowerCase();
+  return (
+    field.type === 'cooldown' ||
+    (fieldId === 'key' && action?.id.toLowerCase().includes('cooldown')) ||
+    fieldId === 'cooldown_key'
+  );
+}
+
 function isConfirmationField(field: EchoApiAdminPanelField) {
   const text = `${field.id} ${field.label} ${field.placeholder ?? ''}`.toLowerCase();
   return text.includes('confirm');
@@ -566,6 +575,38 @@ export default function SettingsScreen() {
                             </Pressable>
                           );
                         })}
+                      </View>
+                    </View>
+                  ) : isCooldownField(field, selectedAction) && field.options?.length ? (
+                    <View style={{ gap: GameTheme.spacing.sm }}>
+                      <TextInput
+                        accessibilityLabel={field.label}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        onChangeText={(value) => setFieldValues((current) => ({ ...current, [field.id]: value.trim() }))}
+                        placeholder="Cooldown key"
+                        placeholderTextColor={GameTheme.colors.textFaint}
+                        style={{
+                          backgroundColor: GameTheme.colors.backgroundSoft,
+                          borderColor: GameTheme.colors.borderBright,
+                          borderRadius: GameTheme.radius.sm,
+                          borderWidth: 1,
+                          color: GameTheme.colors.text,
+                          fontSize: 16,
+                          paddingHorizontal: GameTheme.spacing.md,
+                          paddingVertical: GameTheme.spacing.sm,
+                        }}
+                        value={String(fieldValues[field.id] ?? '')}
+                      />
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GameTheme.spacing.sm }}>
+                        {field.options.map((option) => (
+                          <CasinoButton
+                            key={option.value}
+                            onPress={() => setFieldValues((current) => ({ ...current, [field.id]: option.value }))}
+                            tone={fieldValues[field.id] === option.value ? 'echo' : 'plain'}>
+                            {option.label}
+                          </CasinoButton>
+                        ))}
                       </View>
                     </View>
                   ) : field.type === 'select' && field.options?.length ? (

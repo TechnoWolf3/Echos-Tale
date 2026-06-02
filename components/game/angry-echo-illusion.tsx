@@ -8,6 +8,19 @@ import { useElsewhereGame } from '@/hooks/use-elsewhere-game';
 const angryEcho = require('../../assets/images/angry-echo.png');
 const HOLD_MS = 6800;
 const EXIT_MS = 760;
+const shownIllusionStorageKey = 'echo.shownIllusionKey';
+const echoWarningLines = [
+  'Echo does not forgive borrowed hands.',
+  'You touched the lock. The ledger touched back.',
+  'What was not yours has been returned to nowhere.',
+  'The house has counted your fingers and found one too many.',
+  'A false key opens only an empty vault.',
+  'Your balance has entered witness protection.',
+  'The coins heard your lie and scattered.',
+  'Elsewhere keeps receipts. Yours are burning.',
+  'You reached for the ledger. The ledger reached lower.',
+  'Nothing was stolen. Everything simply stopped knowing you.',
+];
 
 function getIllusionKey(illusion: ReturnType<typeof useElsewhereGame>['illusion']) {
   if (!illusion) {
@@ -15,6 +28,40 @@ function getIllusionKey(illusion: ReturnType<typeof useElsewhereGame>['illusion'
   }
 
   return `${illusion.type}:${illusion.startedAt ?? illusion.expiresAt ?? 'active'}`;
+}
+
+function pickWarningLine(illusionKey: string | null, fallback?: string | null) {
+  if (fallback?.trim()) {
+    return fallback.trim();
+  }
+
+  const key = illusionKey ?? 'echo';
+  const sum = Array.from(key).reduce((total, character) => total + character.charCodeAt(0), 0);
+  return echoWarningLines[sum % echoWarningLines.length];
+}
+
+function getStoredShownIllusionKey() {
+  if (typeof globalThis.sessionStorage === 'undefined') {
+    return null;
+  }
+
+  try {
+    return globalThis.sessionStorage.getItem(shownIllusionStorageKey);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredShownIllusionKey(illusionKey: string) {
+  if (typeof globalThis.sessionStorage === 'undefined') {
+    return;
+  }
+
+  try {
+    globalThis.sessionStorage.setItem(shownIllusionStorageKey, illusionKey);
+  } catch {
+    // The in-memory ref still prevents repeated popups until the current render session ends.
+  }
 }
 
 export function AngryEchoIllusion() {
@@ -28,8 +75,9 @@ export function AngryEchoIllusion() {
 
   useEffect(() => {
     const illusionKey = getIllusionKey(illusion);
+    const alreadyShownIllusionKey = lastShownIllusionKey.current ?? getStoredShownIllusionKey();
 
-    if (!illusionKey || lastShownIllusionKey.current === illusionKey) {
+    if (!illusionKey || alreadyShownIllusionKey === illusionKey) {
       opacity.setValue(0);
       scale.setValue(0.82);
       translateY.setValue(68);
@@ -38,6 +86,7 @@ export function AngryEchoIllusion() {
     }
 
     lastShownIllusionKey.current = illusionKey;
+    setStoredShownIllusionKey(illusionKey);
     setVisibleIllusionKey(illusionKey);
 
     const intro = Animated.parallel([
@@ -122,6 +171,7 @@ export function AngryEchoIllusion() {
     inputRange: [0, 1],
     outputRange: [0.18, 0.42],
   });
+  const warningLine = pickWarningLine(visibleIllusionKey, illusion.message);
 
   return (
     <Animated.View pointerEvents="none" style={[styles.overlay, { opacity }]}>
@@ -130,13 +180,14 @@ export function AngryEchoIllusion() {
       <Animated.View style={[styles.echoWrap, { transform: [{ translateY }, { scale }] }]}>
         <Image accessibilityIgnoresInvertColors resizeMode="contain" source={angryEcho} style={styles.echo} />
       </Animated.View>
-      {illusion.message ? (
-        <Animated.View style={[styles.message, { transform: [{ translateY }] }]}>
-          <GameText style={{ textAlign: 'center' }} tone="echo" variant="title">
-            {illusion.message}
-          </GameText>
-        </Animated.View>
-      ) : null}
+      <Animated.View style={[styles.message, { transform: [{ translateY }] }]}>
+        <GameText style={styles.messageEyebrow} tone="faint" variant="label">
+          Ledger Severed
+        </GameText>
+        <GameText style={styles.messageText} tone="echo" variant="title">
+          {warningLine}
+        </GameText>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -170,7 +221,7 @@ const styles = StyleSheet.create({
   },
   message: {
     alignItems: 'center',
-    backgroundColor: 'rgba(6, 7, 18, 0.74)',
+    backgroundColor: 'rgba(6, 7, 18, 0.82)',
     borderColor: GameTheme.colors.echo,
     borderRadius: GameTheme.radius.sm,
     borderWidth: 1,
@@ -179,6 +230,20 @@ const styles = StyleSheet.create({
     padding: GameTheme.spacing.lg,
     position: 'absolute',
     right: GameTheme.spacing.lg,
+    zIndex: 4,
+  },
+  messageEyebrow: {
+    letterSpacing: 2,
+    marginBottom: GameTheme.spacing.xs,
+    textAlign: 'center',
+  },
+  messageText: {
+    letterSpacing: 1,
+    maxWidth: 620,
+    textAlign: 'center',
+    textShadowColor: 'rgba(169, 243, 255, 0.5)',
+    textShadowOffset: { height: 0, width: 0 },
+    textShadowRadius: 12,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,

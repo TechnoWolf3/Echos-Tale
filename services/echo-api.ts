@@ -1146,7 +1146,7 @@ export type EchoApiAdminPanelField = {
   options?: { label: string; value: string }[];
   placeholder?: string;
   required?: boolean;
-  type?: 'boolean' | 'number' | 'select' | 'text' | 'textarea' | 'user';
+  type?: 'boolean' | 'cooldown' | 'number' | 'select' | 'text' | 'textarea' | 'user';
 };
 
 export type EchoApiAdminPanelAction = {
