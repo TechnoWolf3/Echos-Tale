@@ -1,3 +1,5 @@
+import botPools from '@/services/content/bot-pools.json';
+
 export type ScratchCardTier = 'pocket' | 'lucky' | 'cursed';
 export type ScratchSymbol = 'cash' | 'clover' | 'diamond' | 'eye' | 'fire' | 'skull' | 'star';
 export type CardRank = '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
@@ -154,6 +156,23 @@ function rollBetween(min: number, max: number) {
   return Math.floor(min + Math.random() * (max - min + 1));
 }
 
+function pickFromPool<T>(pool: T[]) {
+  return pool[rollBetween(0, pool.length - 1)];
+}
+
+function pickUnique<T>(pool: T[], count: number) {
+  const copy = [...pool];
+  const picked: T[] = [];
+
+  while (picked.length < count && copy.length > 0) {
+    const index = rollBetween(0, copy.length - 1);
+    const [item] = copy.splice(index, 1);
+    picked.push(item);
+  }
+
+  return picked;
+}
+
 const ranks: CardRank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 const suits: CardSuit[] = ['Clubs', 'Diamonds', 'Hearts', 'Spades'];
 
@@ -263,7 +282,7 @@ export function spinRoulette(amount: number, type: RouletteBetType, value?: numb
     (type === 'high' && pocket >= 19 && pocket <= 36) ||
     (type === 'number' && pocket === value);
   const multiplier = type === 'number' ? 36 : 2;
-  const payout = won ? amount * multiplier : 0;
+  const payout = won ? Math.floor(amount * multiplier) : 0;
 
   return {
     message: won
@@ -393,6 +412,15 @@ function sampleNumbers(count: number, max: number) {
 }
 
 const kenoPayouts: Record<number, Record<number, number>> = {
+  1: { 1: 3.5 },
+  2: { 1: 1, 2: 10 },
+  3: { 2: 2, 3: 25 },
+  4: { 2: 1, 3: 5, 4: 75 },
+  5: { 3: 2, 4: 15, 5: 250 },
+  6: { 3: 1, 4: 5, 5: 50, 6: 800 },
+  7: { 4: 2, 5: 15, 6: 120, 7: 2000 },
+  8: { 4: 2, 5: 10, 6: 50, 7: 400, 8: 5000 },
+  9: { 4: 1, 5: 5, 6: 25, 7: 120, 8: 1000, 9: 10000 },
   10: { 4: 1, 5: 5, 6: 20, 7: 80, 8: 400, 9: 2500, 10: 25000 },
 };
 
@@ -400,13 +428,13 @@ export function playKeno(amount: number, type: KenoBetType, markedTicket?: numbe
   const drawn = sampleNumbers(20, 80);
   const heads = drawn.filter((number) => number <= 40).length;
   const tails = 20 - heads;
-  const ticket = type === 'quickpick' ? [...(markedTicket?.length ? markedTicket : sampleNumbers(10, 80))].sort((a, b) => a - b) : [];
+  const ticket = type === 'quickpick' ? [...(markedTicket ?? [])].sort((a, b) => a - b) : [];
   const hits = ticket.filter((number) => drawn.includes(number)).length;
   const htdWon =
     (type === 'heads' && heads >= 11) ||
     (type === 'tails' && tails >= 11) ||
     (type === 'draw' && heads === 10);
-  const multiplier = type === 'quickpick' ? (kenoPayouts[10][hits] ?? 0) : type === 'draw' ? 4 : 2;
+  const multiplier = type === 'quickpick' ? (kenoPayouts[ticket.length]?.[hits] ?? 0) : type === 'draw' ? 4 : 2;
   const won = type === 'quickpick' ? multiplier > 0 : htdWon;
   const payout = won ? amount * multiplier : 0;
 
@@ -425,7 +453,7 @@ export function playKeno(amount: number, type: KenoBetType, markedTicket?: numbe
   };
 }
 
-const horseNames = [
+const fallbackHorseNames = [
   'Rent Due',
   'Tax Whisper',
   'Bad Omen',
@@ -436,19 +464,40 @@ const horseNames = [
   'Echo Downs',
 ];
 
+const fallbackTrackConditions = ['Dry', 'Fast', 'Wet', 'Muddy', 'Heavy', 'Windy', 'Night Race'];
+const botInsideTrack = botPools.insideTrack as {
+  formLines: Record<string, string[]>;
+  horseNames: string[];
+  majorRaces: string[];
+  trackConditions: string[];
+};
+
+function getInsideTrackForm() {
+  const formPools = Object.values(botInsideTrack.formLines ?? {}).filter((pool) => pool.length > 0);
+  const formLine = formPools.length > 0 ? pickFromPool(pickFromPool(formPools)) : null;
+
+  return formLine
+    ? `${formLine}. Form ${rollBetween(1, 9)}-${rollBetween(1, 9)}-${rollBetween(1, 9)}`
+    : `${rollBetween(1, 9)}-${rollBetween(1, 9)}-${rollBetween(1, 9)}`;
+}
+
 export function createInsideTrackRace(): TrackRace {
-  const conditions = ['Dry', 'Fast', 'Wet', 'Muddy', 'Heavy', 'Windy', 'Night Race'];
+  const horseNamePool = botInsideTrack.horseNames.length > 0 ? botInsideTrack.horseNames : fallbackHorseNames;
+  const conditions =
+    botInsideTrack.trackConditions.length > 0 ? botInsideTrack.trackConditions : fallbackTrackConditions;
+  const selectedHorseNames = pickUnique(horseNamePool, 6);
   const horses = Array.from({ length: 6 }, (_, index) => ({
-    form: `${rollBetween(1, 9)}-${rollBetween(1, 9)}-${rollBetween(1, 9)}`,
-    name: horseNames[index],
+    form: getInsideTrackForm(),
+    name: selectedHorseNames[index] ?? fallbackHorseNames[index],
     number: index + 1,
     odds: Number((1.4 + Math.random() * 10.6).toFixed(2)),
   }));
+  const isMajorRace = botInsideTrack.majorRaces.length > 0 && Math.random() < 0.08;
 
   return {
-    condition: conditions[rollBetween(0, conditions.length - 1)],
+    condition: pickFromPool(conditions),
     horses,
-    name: `Echo Downs Race ${rollBetween(10, 99)}`,
+    name: isMajorRace ? pickFromPool(botInsideTrack.majorRaces) : `Echo Downs Race ${rollBetween(10, 99)}`,
   };
 }
 

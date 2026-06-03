@@ -14,7 +14,8 @@
     "ios": "expo run:ios",
     "vercel-build": "expo export --platform web",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "sync:bot-pools": "node scripts/sync-bot-pools.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

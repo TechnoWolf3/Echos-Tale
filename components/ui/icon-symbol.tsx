@@ -19,6 +19,7 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'gearshape.fill': 'settings',
   'lock.fill': 'lock',
+  'book.closed.fill': 'menu-book',
   sparkles: 'auto-awesome',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',

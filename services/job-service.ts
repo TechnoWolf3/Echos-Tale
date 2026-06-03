@@ -1,3 +1,5 @@
+import botPools from '@/services/content/bot-pools.json';
+
 export type SkillColor = 'Red' | 'Blue' | 'Green' | 'Yellow';
 
 export type SkillCheckSession = {
@@ -51,10 +53,39 @@ export type EmailSorterResolution = {
   xp: number;
 };
 
+type EmailTemplateFamily = {
+  fromPool: string[];
+  key: string;
+  paragraph1Pool: string[];
+  paragraph2Pool: string[];
+  signoffPool: string[];
+  subjectPool: string[];
+};
+
+type BotTruckerFreight = {
+  category: string;
+  name: string;
+  payoutModifier: number;
+};
+
+type BotTruckerPools = {
+  freightPool: BotTruckerFreight[];
+  manifestLines: string[];
+  routes: { distanceKm: number; route: string }[];
+  trailerConfigs: Record<string, string[]>;
+};
+
+const botEmailTemplates = botPools.emailTemplates as Record<EmailFolder, EmailTemplateFamily[]>;
+const botTruckerPools = botPools.trucker as BotTruckerPools;
+
 const skillColors: SkillColor[] = ['Red', 'Blue', 'Green', 'Yellow'];
 
 function rollBetween(min: number, max: number) {
   return Math.floor(min + Math.random() * (max - min + 1));
+}
+
+function pickFromPool<T>(pool: T[]) {
+  return pool[rollBetween(0, pool.length - 1)];
 }
 
 function getJobMultiplier(level: number) {
@@ -172,6 +203,23 @@ const emailTemplates: Record<EmailFolder, Omit<JobEmail, 'id' | 'category'>[]> =
 };
 
 function pickEmail(category: EmailFolder, index: number): JobEmail {
+  const family = pickFromPool(botEmailTemplates[category] ?? []);
+
+  if (family) {
+    return {
+      body: [
+        pickFromPool(family.paragraph1Pool),
+        pickFromPool(family.paragraph2Pool),
+        pickFromPool(family.signoffPool),
+      ].join('\n\n'),
+      category,
+      familyKey: family.key,
+      from: pickFromPool(family.fromPool),
+      id: `${category}-${index}-${rollBetween(100, 999)}`,
+      subject: pickFromPool(family.subjectPool),
+    };
+  }
+
   const templates = emailTemplates[category];
   const template = templates[rollBetween(0, templates.length - 1)];
 
@@ -510,6 +558,7 @@ export function resolveShiftSession({
 }
 
 export type TruckerManifest = {
+  cargoType: string;
   distanceKm: number;
   flavor: string;
   freight: string;
@@ -526,7 +575,7 @@ export type TruckerSession = {
   status: 'active' | 'paid';
 };
 
-const truckerRoutes = [
+const fallbackTruckerRoutes = [
   { distanceKm: 915, route: 'Brisbane to Sydney' },
   { distanceKm: 1_681, route: 'Brisbane to Cairns' },
   { distanceKm: 878, route: 'Sydney to Melbourne' },
@@ -538,29 +587,54 @@ const truckerRoutes = [
   { distanceKm: 904, route: 'Townsville to Mount Isa' },
 ];
 
-const truckerFreight = [
-  ['Frozen Meat', 'Refrigerated Trailer'],
-  ['Medical Supplies', 'Curtainsider'],
-  ['Livestock', 'Livestock Carrier'],
-  ['Bulk Grain', 'Tipper'],
-  ['Machinery Crates', 'Drop Deck'],
-  ['Fuel', 'Tanker'],
-  ['Dangerous Goods', 'Dangerous Goods Trailer'],
-  ['Nursery Plants', 'Semi Trailer'],
+const fallbackTruckerFreight: BotTruckerFreight[] = [
+  { category: 'refrigerated', name: 'Frozen Meat', payoutModifier: 1.12 },
+  { category: 'generalPalletised', name: 'Medical Supplies', payoutModifier: 1 },
+  { category: 'livestock', name: 'Livestock', payoutModifier: 1.16 },
+  { category: 'grainBulk', name: 'Bulk Grain', payoutModifier: 1.03 },
+  { category: 'machineryHeavy', name: 'Machinery Crates', payoutModifier: 1.15 },
+  { category: 'tanker', name: 'Fuel', payoutModifier: 1.14 },
+  { category: 'dangerousGoods', name: 'Dangerous Goods', payoutModifier: 2 },
+  { category: 'plantsOutdoor', name: 'Nursery Plants', payoutModifier: 1 },
 ];
 
+const fallbackTrailerConfigs: Record<string, string[]> = {
+  dangerousGoods: ['Dangerous Goods Trailer'],
+  generalPalletised: ['Curtainsider', 'Semi Trailer'],
+  grainBulk: ['Tipper'],
+  livestock: ['Livestock Carrier'],
+  machineryHeavy: ['Drop Deck'],
+  plantsOutdoor: ['Semi Trailer'],
+  refrigerated: ['Refrigerated Trailer'],
+  tanker: ['Tanker'],
+};
+
+const fallbackManifestLines = ['The manifest smells like diesel, coffee, and questionable scheduling.'];
+
 export function generateTruckerManifest(): TruckerManifest {
-  const route = truckerRoutes[rollBetween(0, truckerRoutes.length - 1)];
-  const freight = truckerFreight[rollBetween(0, truckerFreight.length - 1)];
+  const routes = botTruckerPools.routes.length > 0 ? botTruckerPools.routes : fallbackTruckerRoutes;
+  const freightPool = botTruckerPools.freightPool.length > 0 ? botTruckerPools.freightPool : fallbackTruckerFreight;
+  const manifestLines =
+    botTruckerPools.manifestLines.length > 0 ? botTruckerPools.manifestLines : fallbackManifestLines;
+  const route = pickFromPool(routes);
+  const freight = pickFromPool(freightPool);
+  const trailers = botTruckerPools.trailerConfigs[freight.category] ?? fallbackTrailerConfigs[freight.category] ?? ['Semi Trailer'];
 
   return {
+    cargoType: titleCaseCargoType(freight.category),
     distanceKm: route.distanceKm,
-    flavor: 'The manifest smells like diesel, coffee, and questionable scheduling.',
-    freight: freight[0],
-    payout: route.distanceKm * 12,
+    flavor: pickFromPool(manifestLines),
+    freight: freight.name,
+    payout: Math.round(route.distanceKm * 12 * freight.payoutModifier),
     route: route.route,
-    trailer: freight[1],
+    trailer: pickFromPool(trailers),
   };
+}
+
+function titleCaseCargoType(value: string) {
+  return value
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 }
 
 export function startTruckerRun(manifest: TruckerManifest): TruckerSession {

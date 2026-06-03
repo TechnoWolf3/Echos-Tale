@@ -117,6 +117,14 @@ export default function CityScreen() {
           tone="success"
         />
         <HubCard
+          detail="Echo has gone quiet here. Not absent, not broken; something is being assembled behind the screen."
+          href="/story"
+          meta="Story Mode | signal incomplete | bridge listening"
+          status={game.isDevToolsUnlocked ? 'Dev Preview' : 'Forming'}
+          title="Echo's Tale"
+          tone="echo"
+        />
+        <HubCard
           detail="Offerings, puzzle locks, bad luck with paperwork, and Echo answering in fees."
           href="/rituals"
           meta="Daily Ritual, Echo Wheel, Echo Cipher, Veil Sequence"

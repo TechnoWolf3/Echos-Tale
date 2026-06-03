@@ -179,6 +179,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="story"
+        options={{
+          href: isJailed ? null : '/story',
+          title: 'Tale',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="book.closed.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="rituals"
         options={{
           href: isJailed ? null : '/rituals',

@@ -595,6 +595,92 @@ export type EchoApiCrimeActionBody =
   | { targetId: string }
   | { tierId: string };
 
+export type EchoApiNightWalkerJobId = 'flirt' | 'lapDance' | 'prostitute' | string;
+
+export type EchoApiNightWalkerProgress = {
+  level: number;
+  levelBonusPct?: number;
+  totalJobs?: number;
+  xp: number;
+  xpToNext: number;
+};
+
+export type EchoApiNightWalkerCooldowns = Record<string, string | null>;
+
+export type EchoApiNightWalkerJob = {
+  available?: boolean;
+  cooldownSeconds?: number;
+  disabledReason?: string | null;
+  id: EchoApiNightWalkerJobId;
+  payoutRange?: [number, number] | number[];
+  rounds?: number;
+  title?: string;
+  xp?: {
+    fail?: number;
+    success?: number;
+  };
+};
+
+export type EchoApiNightWalkerDashboard = {
+  cooldowns?: EchoApiNightWalkerCooldowns;
+  jobs?: EchoApiNightWalkerJob[];
+  profile?: EchoApiProfile;
+  progress?: EchoApiNightWalkerProgress;
+};
+
+export type EchoApiNightWalkerChoice = {
+  index: number;
+  label: string;
+};
+
+export type EchoApiNightWalkerSessionState = {
+  mistakeLimit?: number | null;
+  mistakes?: number;
+  payoutModPct?: number;
+  risk?: number;
+  riskLimit?: number | null;
+  wrongCount?: number;
+  wrongLimit?: number;
+};
+
+export type EchoApiNightWalkerSessionStatus = 'active' | 'expired' | 'resolved' | string;
+
+export type EchoApiNightWalkerSession = {
+  choices?: EchoApiNightWalkerChoice[];
+  expiresAt?: string | null;
+  feedback?: string | null;
+  id?: string;
+  jobId?: EchoApiNightWalkerJobId;
+  message?: string | null;
+  profile?: EchoApiProfile;
+  prompt?: string;
+  result?: 'failed' | 'success' | string;
+  round?: number;
+  rounds?: number;
+  sessionId?: string;
+  state?: EchoApiNightWalkerSessionState;
+  status: EchoApiNightWalkerSessionStatus;
+  title?: string;
+};
+
+export type EchoApiNightWalkerResult = {
+  basePayout?: number;
+  cooldownKey?: string;
+  cooldownUntil?: string;
+  finalPayout?: number;
+  leveledUp?: boolean;
+  payout?: number;
+  status?: 'failed' | 'success' | string;
+  xpGained?: number;
+};
+
+export type EchoApiNightWalkerSessionResponse = {
+  message?: string | null;
+  profile?: EchoApiProfile;
+  result?: EchoApiNightWalkerResult;
+  session?: EchoApiNightWalkerSession;
+} & Partial<EchoApiNightWalkerSession>;
+
 export type EchoApiBankLoan = {
   defaultAt?: string | null;
   dueAt?: string | null;
@@ -1749,6 +1835,35 @@ export function fetchCrimeSession(sessionToken: string, sessionId: string, signa
 export function sendCrimeSessionAction(sessionToken: string, sessionId: string, body: EchoApiCrimeActionBody) {
   return echoApiRequest<EchoApiCrimeSessionResponse>(`/v1/jobs/crime/sessions/${encodeURIComponent(sessionId)}/action`, {
     body,
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchNightWalkerDashboard(sessionToken: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiNightWalkerDashboard>('/v1/jobs/nightwalker', {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function startNightWalkerSession(sessionToken: string, jobId: EchoApiNightWalkerJobId) {
+  return echoApiRequest<EchoApiNightWalkerSessionResponse>(`/v1/jobs/nightwalker/${encodeURIComponent(jobId)}/start`, {
+    method: 'POST',
+    token: sessionToken,
+  });
+}
+
+export function fetchNightWalkerSession(sessionToken: string, sessionId: string, signal?: AbortSignal) {
+  return echoApiRequest<EchoApiNightWalkerSessionResponse>(`/v1/jobs/nightwalker/sessions/${encodeURIComponent(sessionId)}`, {
+    signal,
+    token: sessionToken,
+  });
+}
+
+export function sendNightWalkerSessionAction(sessionToken: string, sessionId: string, choiceIndex: number) {
+  return echoApiRequest<EchoApiNightWalkerSessionResponse>(`/v1/jobs/nightwalker/sessions/${encodeURIComponent(sessionId)}/action`, {
+    body: { choiceIndex },
     method: 'POST',
     token: sessionToken,
   });

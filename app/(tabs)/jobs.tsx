@@ -11,6 +11,7 @@ import { ProgressBar } from '@/components/game/progress-bar';
 import { CrimeJob } from '@/components/jobs/crime-job';
 import { EmailSorterJob } from '@/components/jobs/email-sorter-job';
 import { FarmingEnterprise } from '@/components/jobs/farming-enterprise';
+import { NightWalkerJob } from '@/components/jobs/night-walker-job';
 import { ShiftJob } from '@/components/jobs/shift-job';
 import { SkillCheckJob } from '@/components/jobs/skill-check-job';
 import { TransportContractJob } from '@/components/jobs/transport-contract-job';
@@ -25,12 +26,6 @@ const grindJobs = [
   { detail: 'Cast, wait, tug, and manage tension when the water starts acting expensive.', title: 'Fishing' },
   { detail: 'Choose a dig site, go deeper, and decide when the cracks are being dramatic.', title: 'Quarry' },
   { detail: 'Judge passengers, remember routes, and hope the sketchy fare pays in money.', title: 'Taxi Driver' },
-];
-
-const nightWalkerJobs = [
-  { detail: 'Read the room for five rounds. Charm pays. Oversharing does not.', title: 'Flirt' },
-  { detail: 'Stage confidence, timing, and crowd reads. Keep it smooth, not explicit.', title: 'Performance' },
-  { detail: 'Negotiate boundaries, payment, safety, and exit timing with a private client.', title: 'Private Client' },
 ];
 
 const enterpriseJobs = [
@@ -217,16 +212,7 @@ export default function JobsScreen() {
 
       {activeHub === 'night' ? (
         <View style={{ gap: GameTheme.spacing.md }}>
-          {nightWalkerJobs.map((job) => (
-            <HubCard
-              key={job.title}
-              detail={job.detail}
-              meta="Night work | social risk | wallet payout"
-              status="Later"
-              title={job.title}
-              tone="ember"
-            />
-          ))}
+          <NightWalkerJob />
         </View>
       ) : null}
 

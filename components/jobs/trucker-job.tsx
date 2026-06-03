@@ -80,9 +80,32 @@ export function TruckerJob() {
       </View>
 
       <GameCard style={{ backgroundColor: GameTheme.colors.backgroundSoft }}>
-        <GameText variant="title">{manifest.freight}</GameText>
-        <GameText tone="muted">{manifest.route}</GameText>
-        <GameText tone="muted">{manifest.trailer}</GameText>
+        <View style={{ gap: GameTheme.spacing.xs }}>
+          <GameText tone="faint" variant="caption">
+            Cargo
+          </GameText>
+          <GameText variant="title">{manifest.freight}</GameText>
+        </View>
+        <View style={{ gap: GameTheme.spacing.xs }}>
+          <GameText tone="faint" variant="caption">
+            Type
+          </GameText>
+          <GameText tone="echo" variant="label">
+            {manifest.cargoType}
+          </GameText>
+        </View>
+        <View style={{ gap: GameTheme.spacing.xs }}>
+          <GameText tone="faint" variant="caption">
+            Route
+          </GameText>
+          <GameText tone="muted">{manifest.route}</GameText>
+        </View>
+        <View style={{ gap: GameTheme.spacing.xs }}>
+          <GameText tone="faint" variant="caption">
+            Trailer
+          </GameText>
+          <GameText tone="muted">{manifest.trailer}</GameText>
+        </View>
         <GameText tone="echo" variant="label">
           {manifest.distanceKm.toLocaleString()} km | ${manifest.payout.toLocaleString()}
         </GameText>

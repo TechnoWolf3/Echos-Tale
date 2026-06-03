@@ -173,7 +173,8 @@ export function KenoGame() {
       }
 
       if (current.length >= 10) {
-        return [...current.slice(1), number].sort((a, b) => a - b);
+        setError('Keno tickets can hold up to 10 numbers.');
+        return current;
       }
 
       return [...current, number].sort((a, b) => a - b);
@@ -188,11 +189,16 @@ export function KenoGame() {
     setError(null);
     setActiveCall(null);
 
+    if (mode === 'quickpick' && markedTicket.length === 0) {
+      setError('Pick 1-10 numbers or use Mark 10 before drawing.');
+      return;
+    }
+
     if (game.sessionToken) {
       setBusy(true);
 
       try {
-        const ticket = mode === 'quickpick' ? (markedTicket.length === 10 ? markedTicket : createQuickPick()) : undefined;
+        const ticket = mode === 'quickpick' ? markedTicket : undefined;
         const nextResult = await playKenoDraw(game.sessionToken, {
           amount,
           ticket,
@@ -214,7 +220,7 @@ export function KenoGame() {
       return;
     }
 
-    const ticket = mode === 'quickpick' ? (markedTicket.length === 10 ? markedTicket : createQuickPick()) : undefined;
+    const ticket = mode === 'quickpick' ? markedTicket : undefined;
     const nextResult = playKeno(amount, mode, ticket);
     const settled = game.resolveCasinoPlay({ cost: amount, message: nextResult.message, payout: nextResult.payout });
 
@@ -248,7 +254,7 @@ export function KenoGame() {
   };
 
   const callStartX = boardSize.width / 2 - CALL_BALL_SIZE / 2;
-  const callStartY = Math.max(GameTheme.spacing.sm, boardSize.height * 0.2);
+  const callStartY = boardSize.height / 2 - CALL_BALL_SIZE / 2;
   const calledIndex = activeCall ? activeCall - 1 : 0;
   const calledColumn = calledIndex % BOARD_COLUMNS;
   const calledRow = Math.floor(calledIndex / BOARD_COLUMNS);
@@ -267,7 +273,7 @@ export function KenoGame() {
         <View style={{ flex: 1, gap: GameTheme.spacing.xs }}>
           <GameText variant="title">Keno</GameText>
           <GameText tone="muted">
-            Mark 10 spots or back the heads/tails board, then watch the twenty-number draw light up.
+            Pick 1-10 spots or back the heads/tails board, then watch the twenty-number draw light up.
           </GameText>
         </View>
         <View style={styles.drawMeter}>
