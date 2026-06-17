@@ -280,6 +280,7 @@ export function RouletteGame() {
       const profile = getProfile(payload);
 
       setTable(nextTable);
+      setTables((current) => getTables([...current.filter((entry) => entry.tableId !== nextTable.tableId), nextTable]));
       setError(null);
 
       if (profile) {
@@ -383,14 +384,13 @@ export function RouletteGame() {
       try {
         const nextTable = applyTablePayload(await action());
         after?.(nextTable);
-        await loadTables();
       } catch (requestError) {
         setError(getErrorMessage(requestError));
       } finally {
         setBusyAction(null);
       }
     },
-    [applyTablePayload, loadTables, token]
+    [applyTablePayload, token]
   );
 
   const createTable = useCallback(() => runTableAction('create', () => createRouletteTable(token!)), [runTableAction, token]);

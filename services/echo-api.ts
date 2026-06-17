@@ -993,6 +993,7 @@ export type DiscordLinkStatusResponse = {
 
 type ApiOptions = {
   body?: unknown;
+  cacheMs?: number;
   headers?: Record<string, string>;
   method?: 'DELETE' | 'GET' | 'POST';
   signal?: AbortSignal;
@@ -1044,6 +1045,30 @@ const logApiFailure = (path: string, method: string, error: unknown) => {
   });
 };
 
+const defaultGetCacheMs = 2_500;
+const getCache = new Map<string, { expiresAt: number; value: unknown }>();
+const getRequestsInFlight = new Map<string, Promise<unknown>>();
+const preferredApiPaths = new Map<string, string>();
+
+function getCacheKey(path: string, options: ApiOptions, method: string) {
+  return JSON.stringify({
+    headers: options.headers ?? {},
+    method,
+    path,
+    token: options.token ?? null,
+  });
+}
+
+function clearTokenCache(token?: string | null) {
+  const tokenNeedle = JSON.stringify(token ?? null);
+
+  for (const key of getCache.keys()) {
+    if (key.includes(`"token":${tokenNeedle}`)) {
+      getCache.delete(key);
+    }
+  }
+}
+
 async function readError(response: Response) {
   const payload = await response.json().catch(() => null);
 
@@ -1061,8 +1086,27 @@ export async function echoApiRequest<T>(path: string, options: ApiOptions = {}):
 
   const hasBody = options.body !== undefined;
   const method = options.method ?? 'GET';
+  const cacheMs = options.cacheMs ?? defaultGetCacheMs;
+  const canCache = method === 'GET' && cacheMs > 0;
+  const cacheKey = canCache ? getCacheKey(path, options, method) : null;
 
-  try {
+  if (cacheKey) {
+    const cached = getCache.get(cacheKey);
+
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value as T;
+    }
+
+    if (!options.signal) {
+      const pending = getRequestsInFlight.get(cacheKey);
+
+      if (pending) {
+        return (await pending) as T;
+      }
+    }
+  }
+
+  const request = (async () => {
     const response = await fetch(`${echoApiBaseUrl}${path}`, {
       body: hasBody ? JSON.stringify(options.body) : undefined,
       headers: {
@@ -1079,7 +1123,23 @@ export async function echoApiRequest<T>(path: string, options: ApiOptions = {}):
       throw new EchoApiError(await readError(response), response.status);
     }
 
-    return (await response.json()) as T;
+    const payload = (await response.json()) as T;
+
+    if (cacheKey) {
+      getCache.set(cacheKey, { expiresAt: Date.now() + cacheMs, value: payload });
+    } else if (method !== 'GET') {
+      clearTokenCache(options.token);
+    }
+
+    return payload;
+  })();
+
+  if (cacheKey && !options.signal) {
+    getRequestsInFlight.set(cacheKey, request);
+  }
+
+  try {
+    return await request;
   } catch (error) {
     if (error instanceof EchoApiError) {
       logApiFailure(path, method, error);
@@ -1088,15 +1148,24 @@ export async function echoApiRequest<T>(path: string, options: ApiOptions = {}):
 
     logApiFailure(path, method, error);
     throw new EchoApiError(`Cannot reach Echo's Tale API. Please check your connection or try again.`, 0, 'NETWORK_ERROR');
+  } finally {
+    if (cacheKey) {
+      getRequestsInFlight.delete(cacheKey);
+    }
   }
 }
 
 async function echoApiRequestAny<T>(paths: string[], options: ApiOptions = {}): Promise<T> {
   let lastNotFound: EchoApiError | null = null;
+  const preferredPathKey = paths.join('|');
+  const preferredPath = preferredApiPaths.get(preferredPathKey);
+  const orderedPaths = preferredPath ? [preferredPath, ...paths.filter((path) => path !== preferredPath)] : paths;
 
-  for (const path of paths) {
+  for (const path of orderedPaths) {
     try {
-      return await echoApiRequest<T>(path, options);
+      const response = await echoApiRequest<T>(path, options);
+      preferredApiPaths.set(preferredPathKey, path);
+      return response;
     } catch (error) {
       if (error instanceof EchoApiError && error.status === 404) {
         lastNotFound = error;

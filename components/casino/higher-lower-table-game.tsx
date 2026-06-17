@@ -131,6 +131,7 @@ export function HigherLowerTableGame({ autoCreate }: HigherLowerTableGameProps) 
       const profile = getProfile(payload);
 
       setTable(nextTable);
+      setTables((current) => getTables([...current.filter((entry) => entry.tableId !== nextTable.tableId), nextTable]));
       setError(null);
 
       if (profile) {
@@ -215,14 +216,13 @@ export function HigherLowerTableGame({ autoCreate }: HigherLowerTableGameProps) 
 
       try {
         applyTablePayload(await action());
-        await loadTables();
       } catch (requestError) {
         setError(getErrorMessage(requestError));
       } finally {
         setBusyAction(null);
       }
     },
-    [applyTablePayload, loadTables, token]
+    [applyTablePayload, token]
   );
 
   const createTable = useCallback(() => runTableAction('create', () => createHigherLowerTable(token!)), [runTableAction, token]);

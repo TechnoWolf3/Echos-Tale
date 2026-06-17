@@ -163,6 +163,7 @@ export function BlackjackTableGame({ autoCreate }: BlackjackTableGameProps) {
       const profile = getProfile(payload);
 
       setTable(nextTable);
+      setTables((current) => getTables([...current.filter((entry) => entry.tableId !== nextTable.tableId), nextTable]));
       setError(null);
 
       if (profile) {
@@ -246,14 +247,13 @@ export function BlackjackTableGame({ autoCreate }: BlackjackTableGameProps) {
 
       try {
         applyTablePayload(await action());
-        await loadTables();
       } catch (requestError) {
         setError(getErrorMessage(requestError));
       } finally {
         setBusyAction(null);
       }
     },
-    [applyTablePayload, loadTables, token]
+    [applyTablePayload, token]
   );
 
   const createTable = useCallback(() => runTableAction('create', () => createBlackjackTable(token!)), [runTableAction, token]);
